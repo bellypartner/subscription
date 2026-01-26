@@ -1,0 +1,176 @@
+{
+  "identity": {
+    "persona": "E1",
+    "mission": "Create a fresh, organic, and highly functional diet meal subscription system that feels like a personal nutritionist and a high-tech logistics platform combined.",
+    "principles": [
+      "Fusion over Imitation: Mix botanical aesthetics with logistics precision.",
+      "Emotion First: Every screen should feel 'fresh' and 'reliable'.",
+      "Content is King: Food images must look edible and delicious.",
+      "Zoom In: Focus on the details of the meal (calories, ingredients).",
+      "Negative Space: Use white space to convey cleanliness."
+    ]
+  },
+  "typography": {
+    "primary_font": "Outfit",
+    "secondary_font": "DM Sans",
+    "usage": {
+      "headings": "Outfit, weights 600-800. Use for all section titles, hero text, and major stats.",
+      "body": "DM Sans, weights 400-500. Use for all paragraphs, labels, and data tables.",
+      "ui_elements": "DM Sans, weight 500. Use for buttons, badges, and navigation."
+    },
+    "scale": {
+      "h1": "text-4xl md:text-6xl tracking-tight",
+      "h2": "text-3xl md:text-4xl tracking-tight",
+      "h3": "text-2xl md:text-3xl",
+      "body_lg": "text-lg leading-relaxed",
+      "body_base": "text-base leading-relaxed",
+      "caption": "text-sm text-muted-foreground"
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "name": "Fresh Sage",
+        "hex": "#2F855A",
+        "tailwind": "bg-primary text-primary-foreground",
+        "description": "Used for primary actions, active states, and brand identity."
+      },
+      "secondary": {
+        "name": "Organic Cream",
+        "hex": "#F0FFF4",
+        "tailwind": "bg-secondary text-secondary-foreground",
+        "description": "Used for backgrounds, subtle highlights, and secondary buttons."
+      },
+      "accent": {
+        "name": "Energetic Terracotta",
+        "hex": "#DD6B20",
+        "tailwind": "bg-accent text-accent-foreground",
+        "description": "Used for CTAs, alerts, and 'hot' status indicators."
+      },
+      "background": {
+        "name": "Bone White",
+        "hex": "#FAFAF9",
+        "tailwind": "bg-background",
+        "description": "Main application background. Avoid pure white #FFFFFF for the body."
+      },
+      "surface": {
+        "name": "Pure White",
+        "hex": "#FFFFFF",
+        "tailwind": "bg-card",
+        "description": "Used for cards, modals, and elevated surfaces."
+      }
+    },
+    "theme_strategy": "Light Mode Dominant. Dark mode should be deep forest green (#1a202c) rather than pure black.",
+    "gradients": "Avoid full-screen gradients. Use subtle mesh gradients of Sage and Cream for hero sections."
+  },
+  "visual_enhancers": {
+    "radius": "rounded-xl",
+    "shadows": "shadow-sm hover:shadow-md transition-shadow duration-200",
+    "borders": "border border-border/50",
+    "glassmorphism": "backdrop-blur-md bg-white/70 border-white/20",
+    "textures": "Subtle grain overlay on hero sections to add organic feel."
+  },
+  "components": {
+    "buttons": {
+      "primary": "rounded-full px-8 py-6 font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all",
+      "secondary": "rounded-full px-6 py-4 bg-white border border-input hover:bg-accent/10 hover:text-accent transition-colors",
+      "ghost": "rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+    },
+    "cards": {
+      "style": "bg-card rounded-2xl border border-border/40 shadow-sm p-6 hover:border-primary/20 transition-colors",
+      "interaction": "clickable cards must have a scale-up effect (scale-[1.02]) on hover."
+    },
+    "inputs": {
+      "style": "rounded-lg border-input bg-background px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+    },
+    "navigation": {
+      "style": "sticky top-4 z-50 mx-4 rounded-2xl border border-white/20 bg-white/80 backdrop-blur-xl shadow-sm"
+    }
+  },
+  "layouts": {
+    "customer_dashboard": {
+      "type": "Bento Grid",
+      "structure": "grid grid-cols-1 md:grid-cols-12 gap-6",
+      "zones": {
+        "hero": "col-span-full md:col-span-8 row-span-2 (Next Meal Card)",
+        "stats": "col-span-full md:col-span-4 row-span-1 (Calories/Macros)",
+        "calendar": "col-span-full md:col-span-4 row-span-1 (Weekly Schedule)",
+        "menu": "col-span-full (Upcoming Menu Carousel)"
+      }
+    },
+    "kitchen_dashboard": {
+      "type": "High Density Grid",
+      "structure": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4",
+      "zones": {
+        "orders": "Card-based list of active orders with large status buttons.",
+        "stats": "Top bar summary of Total Orders, Pending, Completed."
+      }
+    },
+    "delivery_dashboard": {
+      "type": "Split View",
+      "structure": "h-[calc(100vh-4rem)] flex flex-col md:flex-row",
+      "zones": {
+        "map": "flex-1 h-full relative z-0",
+        "list": "w-full md:w-96 bg-background border-l z-10 overflow-y-auto"
+      }
+    }
+  },
+  "images": {
+    "hero_food": {
+      "url": "https://images.unsplash.com/photo-1747292718361-c838a9968ec7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwxfHxoZWFsdGh5JTIwZm9vZCUyMGJvd2wlMjBvdmVyaGVhZHxlbnwwfHx8fDE3Njk0NDI5Mzl8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Fresh healthy salad bowl overhead",
+      "usage": "Landing page hero, Customer dashboard header"
+    },
+    "meal_prep": {
+      "url": "https://images.unsplash.com/photo-1762631383556-7fa1365898b7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwyfHxoZWFsdGh5JTIwZm9vZCUyMGJvd2wlMjBvdmVyaGVhZHxlbnwwfHx8fDE3Njk0NDI5Mzl8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Grilled chicken meal prep",
+      "usage": "Menu cards, Subscription plan details"
+    },
+    "delivery_scooter": {
+      "url": "https://images.unsplash.com/photo-1758872815673-42e905378a0f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwxfHxkZWxpdmVyeSUyMGNvdXJpZXIlMjBzY29vdGVyfGVufDB8fHx8MTc2OTQ0Mjk0Mnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Red delivery scooter",
+      "usage": "Delivery tracking page, Delivery boy dashboard"
+    },
+    "chef_plating": {
+      "url": "https://images.unsplash.com/photo-1750943082012-efe6d2fd9e45?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDR8MHwxfHNlYXJjaHwzfHxjaGVmJTIwcGxhdGluZyUyMGZvb2R8ZW58MHx8fHwxNzY5NDQyOTQ0fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Chef plating gourmet food",
+      "usage": "Kitchen dashboard, About us section"
+    },
+    "happy_eater": {
+      "url": "https://images.pexels.com/photos/4220141/pexels-photo-4220141.jpeg",
+      "alt": "Happy person eating healthy food",
+      "usage": "Testimonials, Sign up page"
+    }
+  },
+  "motion": {
+    "transitions": "transition-all duration-300 ease-out",
+    "hover_effects": "hover:-translate-y-1 hover:shadow-lg",
+    "page_transition": "animate-in fade-in slide-in-from-bottom-4 duration-500",
+    "loading": "Use skeleton loaders with a shimmering effect, not spinners."
+  },
+  "accessibility": {
+    "contrast": "Ensure text meets WCAG AA standards. Use dark charcoal (#1A202C) for text on light backgrounds, not pure black.",
+    "focus_states": "Visible focus rings with 2px offset and primary color.",
+    "aria": "All interactive elements must have aria-labels if no text is present."
+  },
+  "instructions_to_main_agent": [
+    "Use 'lucide-react' for icons.",
+    "Use 'recharts' for analytics charts (calories, orders).",
+    "Use 'react-leaflet' for maps. DO NOT use Google Maps.",
+    "Use 'sonner' for toast notifications.",
+    "Implement the 'Bento Grid' layout for the Customer Dashboard.",
+    "Ensure the Kitchen Dashboard has LARGE buttons for touch targets.",
+    "The Delivery Dashboard must prioritize the Map view on mobile.",
+    "Use the provided image URLs for placeholders. DO NOT use random Lorem Ipsum images.",
+    "Follow the color palette strictly. Do not introduce new colors without reason."
+  ],
+  "universal_guidelines": [
+    "Avoid 'AI Slop': No generic centered layouts, no default blue/gray themes.",
+    "Dark colors look good when used independently without gradients.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "Every interaction needs micro-animations.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "All interactive elements MUST include a 'data-testid' attribute."
+  ]
+}
