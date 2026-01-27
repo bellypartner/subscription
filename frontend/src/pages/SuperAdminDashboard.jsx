@@ -727,7 +727,7 @@ export default function SuperAdminDashboard({ user }) {
               <div className="space-y-2">
                 <Label>Diet Type *</Label>
                 <Select value={newMenuItem.diet_type} onValueChange={(v) => setNewMenuItem({ ...newMenuItem, diet_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger data-testid="menu-item-diet-type-select"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="veg">Veg</SelectItem>
                     <SelectItem value="non_veg">Non-Veg</SelectItem>
@@ -740,6 +740,7 @@ export default function SuperAdminDashboard({ user }) {
                   value={newMenuItem.ingredients}
                   onChange={(e) => setNewMenuItem({ ...newMenuItem, ingredients: e.target.value })}
                   placeholder="Chicken, Lettuce, Tomato"
+                  data-testid="menu-item-ingredients-input"
                 />
               </div>
             </div>
@@ -747,13 +748,14 @@ export default function SuperAdminDashboard({ user }) {
             {/* Allergy Tags */}
             <div className="space-y-2">
               <Label>Allergy Tags</Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2" data-testid="allergy-tags-container">
                 {(constants.allergies || []).map(tag => (
                   <Badge
                     key={tag}
                     variant={newMenuItem.allergy_tags.includes(tag) ? "destructive" : "outline"}
                     className="cursor-pointer"
                     onClick={() => toggleAllergyTag(tag)}
+                    data-testid={`allergy-tag-${tag}`}
                   >
                     {tag}
                   </Badge>
@@ -771,6 +773,7 @@ export default function SuperAdminDashboard({ user }) {
                     type="number"
                     value={newMenuItem.calories}
                     onChange={(e) => setNewMenuItem({ ...newMenuItem, calories: parseInt(e.target.value) || 0 })}
+                    data-testid="menu-item-calories-input"
                   />
                 </div>
                 <div className="space-y-1">
@@ -780,6 +783,7 @@ export default function SuperAdminDashboard({ user }) {
                     step="0.1"
                     value={newMenuItem.protein}
                     onChange={(e) => setNewMenuItem({ ...newMenuItem, protein: parseFloat(e.target.value) || 0 })}
+                    data-testid="menu-item-protein-input"
                   />
                 </div>
                 <div className="space-y-1">
@@ -789,6 +793,7 @@ export default function SuperAdminDashboard({ user }) {
                     step="0.1"
                     value={newMenuItem.carbs}
                     onChange={(e) => setNewMenuItem({ ...newMenuItem, carbs: parseFloat(e.target.value) || 0 })}
+                    data-testid="menu-item-carbs-input"
                   />
                 </div>
                 <div className="space-y-1">
@@ -798,6 +803,7 @@ export default function SuperAdminDashboard({ user }) {
                     step="0.1"
                     value={newMenuItem.fat}
                     onChange={(e) => setNewMenuItem({ ...newMenuItem, fat: parseFloat(e.target.value) || 0 })}
+                    data-testid="menu-item-fat-input"
                   />
                 </div>
                 <div className="space-y-1">
@@ -806,6 +812,7 @@ export default function SuperAdminDashboard({ user }) {
                     type="number"
                     value={newMenuItem.sodium}
                     onChange={(e) => setNewMenuItem({ ...newMenuItem, sodium: parseFloat(e.target.value) || 0 })}
+                    data-testid="menu-item-sodium-input"
                   />
                 </div>
                 <div className="space-y-1">
@@ -815,6 +822,7 @@ export default function SuperAdminDashboard({ user }) {
                     step="0.1"
                     value={newMenuItem.fiber}
                     onChange={(e) => setNewMenuItem({ ...newMenuItem, fiber: parseFloat(e.target.value) || 0 })}
+                    data-testid="menu-item-fiber-input"
                   />
                 </div>
               </div>
@@ -822,7 +830,7 @@ export default function SuperAdminDashboard({ user }) {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowMenuDialog(false)}>Cancel</Button>
-              <Button onClick={saveMenuItem}>{editingMenuItem ? "Update" : "Create"}</Button>
+              <Button onClick={saveMenuItem} data-testid="save-menu-item-btn">{editingMenuItem ? "Update" : "Create"}</Button>
             </DialogFooter>
           </div>
         </DialogContent>
