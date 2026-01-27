@@ -1006,53 +1006,73 @@ export default function SuperAdminDashboard({ user }) {
 
 // Plan Menu Builder Component
 function PlanMenuBuilder({ plan, menuItems, onSave, onCancel }) {
-  const [sequence, setSequence] = useState(plan.menu_items_sequence || []);
-  const totalDays = plan.total_deliveries;
+  const [selectedItems, setSelectedItems] = useState(plan.selected_items || []);
+  const maxItems = plan.delivery_days || 24;
 
-  const setItemForDay = (day, itemId) => {
-    const newSequence = sequence.filter(s => s.day !== day);
-    if (itemId) {
-      newSequence.push({ day, item_id: itemId, meal_period: "lunch" });
+  const toggleItem = (itemId) => {
+    if (selectedItems.includes(itemId)) {
+      setSelectedItems(selectedItems.filter(id => id !== itemId));
+    } else if (selectedItems.length < maxItems) {
+      setSelectedItems([...selectedItems, itemId]);
     }
-    newSequence.sort((a, b) => a.day - b.day);
-    setSequence(newSequence);
-  };
-
-  const getItemForDay = (day) => {
-    const found = sequence.find(s => s.day === day);
-    return found?.item_id || "";
   };
 
   return (
     <div className="space-y-4 mt-4">
-      <p className="text-sm text-muted-foreground">
-        Assign menu items for each delivery day. Total: {totalDays} days. Selected: {sequence.length}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Select menu items for this plan ({selectedItems.length} / {maxItems})
+        </p>
+        <Badge variant={selectedItems.length === maxItems ? "default" : "secondary"}>
+          {selectedItems.length === maxItems ? "Complete" : `${maxItems - selectedItems.length} more needed`}
+        </Badge>
+      </div>
       
-      <div className="grid grid-cols-4 gap-3 max-h-[400px] overflow-y-auto">
-        {Array.from({ length: totalDays }, (_, i) => i + 1).map(day => (
-          <div key={day} className="space-y-1">
-            <Label className="text-xs">Day {day}</Label>
-            <Select value={getItemForDay(day)} onValueChange={(v) => setItemForDay(day, v)}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Select item" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">-- None --</SelectItem>
-                {menuItems.map(item => (
-                  <SelectItem key={item.item_id} value={item.item_id}>
-                    {item.name} ({item.category})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto p-1">
+        {menuItems.map(item => {
+          const isSelected = selectedItems.includes(item.item_id);
+          const canSelect = selectedItems.length < maxItems || isSelected;
+          
+          return (
+            <div 
+              key={item.item_id}
+              className={`relative p-3 rounded-lg border cursor-pointer transition-all ${
+                isSelected 
+                  ? 'border-primary bg-primary/5 shadow-sm' 
+                  : canSelect 
+                    ? 'border-muted hover:border-primary/50' 
+                    : 'border-muted opacity-50 cursor-not-allowed'
+              }`}
+              onClick={() => canSelect && toggleItem(item.item_id)}
+            >
+              {isSelected && (
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  {selectedItems.indexOf(item.item_id) + 1}
+                </div>
+              )}
+              <div className="w-full aspect-square bg-muted rounded-md mb-2 overflow-hidden">
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Utensils className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <p className="font-medium text-sm truncate">{item.name}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <Badge variant="outline" className="text-xs">{item.category}</Badge>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <DialogFooter>
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(sequence)}>Save Menu Sequence</Button>
+        <Button onClick={() => onSave(selectedItems)} data-testid="save-menu-selection-btn">
+          Save Selection ({selectedItems.length} items)
+        </Button>
       </DialogFooter>
     </div>
   );
