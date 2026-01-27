@@ -251,7 +251,7 @@ class DietMealAPITester:
             return 1
 
 def main():
-    tester = FoodFleetAPITester()
+    tester = DietMealAPITester()
     return tester.run_all_tests()
 
 if __name__ == "__main__":
