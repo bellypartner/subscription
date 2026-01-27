@@ -139,13 +139,13 @@ class PlanBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
     plan_id: str = Field(default_factory=lambda: f"plan_{uuid.uuid4().hex[:12]}")
     name: str
-    delivery_days: int  # 6, 12, or 24
-    validity_days: int  # 7, 15, or 30
-    diet_type: str  # veg, non_veg, mixed
-    price: float
-    cost: float
+    delivery_days: int = 24  # 6, 12, or 24 (number of deliveries)
+    validity_days: int = 30  # 7, 15, or 30 (calendar days valid)
+    diet_type: str = "veg"  # veg, non_veg, mixed
+    price: float = 0
+    cost: float = 0
     description: Optional[str] = None
-    # Selected menu items (exactly delivery_days count)
+    # Selected menu items (up to delivery_days count)
     selected_items: List[str] = []  # List of item_ids
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
