@@ -557,53 +557,55 @@ export default function SuperAdminDashboard({ user }) {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Plans & Pricing</CardTitle>
-                <Button onClick={() => { resetPlanForm(); setEditingPlan(null); setShowPlanDialog(true); }}>
+                <Button onClick={() => { resetPlanForm(); setEditingPlan(null); setShowPlanDialog(true); }} data-testid="add-plan-btn">
                   <Plus className="w-4 h-4 mr-2" />Add Plan
                 </Button>
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {plans.map((plan) => (
-                    <Card key={plan.plan_id} className={`${!plan.is_active ? 'opacity-50' : ''}`}>
+                    <Card key={plan.plan_id} className={`${!plan.is_active ? 'opacity-50' : ''}`} data-testid={`plan-card-${plan.plan_id}`}>
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div>
-                            <Badge variant="outline" className="capitalize mb-2">{plan.plan_type.replace("_", " ")}</Badge>
+                            <Badge variant="outline" className="capitalize mb-2">
+                              {plan.delivery_days || 24} Deliveries
+                            </Badge>
                             <h3 className="font-semibold">{plan.name}</h3>
                           </div>
-                          <Badge className="capitalize">{plan.diet_type.replace("_", " ")}</Badge>
+                          <Badge className="capitalize">{(plan.diet_type || "veg").replace("_", " ")}</Badge>
                         </div>
                         
                         <div className="mb-4">
                           <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold">₹{plan.price}</span>
-                            <span className="text-sm text-muted-foreground">/ {plan.total_deliveries} deliveries</span>
+                            <span className="text-2xl font-bold">₹{plan.price || 0}</span>
+                            <span className="text-sm text-muted-foreground">/ {plan.validity_days || 30} days</span>
                           </div>
-                          <p className="text-xs text-muted-foreground">Cost: ₹{plan.cost}</p>
+                          <p className="text-xs text-muted-foreground">Cost: ₹{plan.cost || 0}</p>
                         </div>
                         
                         {/* Menu items assigned */}
                         <div className="mb-4">
                           <p className="text-sm text-muted-foreground">
-                            Menu items: {plan.menu_items_sequence?.length || 0} / {plan.total_deliveries}
+                            Menu items: {plan.selected_items?.length || 0} / {plan.delivery_days || 24}
                           </p>
                           <div className="h-2 bg-muted rounded-full overflow-hidden mt-1">
                             <div 
                               className="h-full bg-primary rounded-full"
-                              style={{ width: `${((plan.menu_items_sequence?.length || 0) / plan.total_deliveries) * 100}%` }}
+                              style={{ width: `${((plan.selected_items?.length || 0) / (plan.delivery_days || 24)) * 100}%` }}
                             />
                           </div>
                         </div>
                         
                         {plan.is_active && (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="flex-1" onClick={() => editPlan(plan)}>
+                            <Button size="sm" variant="outline" className="flex-1" onClick={() => editPlan(plan)} data-testid={`edit-plan-${plan.plan_id}`}>
                               <Edit className="w-3 h-3 mr-1" />Edit
                             </Button>
-                            <Button size="sm" variant="secondary" className="flex-1" onClick={() => openPlanBuilder(plan)}>
+                            <Button size="sm" variant="secondary" className="flex-1" onClick={() => openPlanBuilder(plan)} data-testid={`menu-plan-${plan.plan_id}`}>
                               <Utensils className="w-3 h-3 mr-1" />Menu
                             </Button>
-                            <Button size="sm" variant="destructive" onClick={() => deletePlan(plan.plan_id)}>
+                            <Button size="sm" variant="destructive" onClick={() => deletePlan(plan.plan_id)} data-testid={`delete-plan-${plan.plan_id}`}>
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
