@@ -12,7 +12,7 @@ Build a comprehensive diet meal subscription management system (Salad Caffe) wit
 - Cancellation cutoffs: Breakfast 6AM, Lunch 10AM, Dinner 2PM
 - Customer profile with health info, allergies, lifestyle data
 - Profile completion wallet (₹100 max)
-- Razorpay integration for payments
+- Simple payment link (Razorpay link: https://razorpay.me/@saladcaffe)
 
 ## User Personas
 1. **Super Admin** - Full system access, pricing control, menu management, analytics, audit logs
@@ -41,8 +41,8 @@ Build a comprehensive diet meal subscription management system (Salad Caffe) wit
 - [x] New role structure (8 roles with RBAC)
 - [x] User management with profile points/wallet
 - [x] Kitchen management (Kochi, Trivandrum)
-- [x] Plan management (Weekly/15 Days/Monthly)
-- [x] Menu item management with categories
+- [x] Plan management with delivery_days/validity_days/selected_items
+- [x] Menu item management with full nutrition info
 - [x] Subscription management with auto-extension
 - [x] Delivery scheduling with cancellation rules
 - [x] Alternative delivery requests (skip/reschedule)
@@ -50,12 +50,14 @@ Build a comprehensive diet meal subscription management system (Salad Caffe) wit
 - [x] Audit logging for all actions
 - [x] Constants API for all dropdowns
 - [x] Reports: Subscriptions, Expiring, Revenue, Delivery Boys
-- [x] Razorpay integration (ready for keys)
+- [x] Image upload for menu items (base64)
 
 ### Frontend (React + Tailwind + Shadcn)
 - [x] Landing page
 - [x] Login/Signup with phone
-- [x] Super Admin Dashboard (plans, menu, audit logs)
+- [x] Super Admin Dashboard - **FULLY FUNCTIONAL CRUD**:
+  - [x] Menu Items CRUD (name, category, image, nutrition, allergy tags)
+  - [x] Plans CRUD (name, delivery_days, validity_days, price, menu item selection)
 - [x] Admin Dashboard (users, kitchens)
 - [x] City Manager Dashboard (kitchens, delivery boys, requests)
 - [x] Kitchen Manager Dashboard (ALL meals visible - Breakfast/Lunch/Dinner tabs)
@@ -82,12 +84,13 @@ Build a comprehensive diet meal subscription management system (Salad Caffe) wit
 ## Prioritized Backlog
 
 ### P0 (Critical - Next)
-- [ ] Menu Template Builder with mandatory rules validation
-- [ ] Razorpay payment link generation (add API keys)
+- [ ] Customer map view with delivery tracking (status colors: 🟢🟡🔴)
+- [ ] Simple Pay/Renew button with Razorpay link (https://razorpay.me/@saladcaffe)
+- [ ] Delivery Boy "Mark as Delivered" functionality
 - [ ] Print/KOT functionality for kitchen
-- [ ] Customer map view with status colors (🟢🟡🔴)
 
 ### P1 (High Priority)
+- [ ] Customer calendar view for delivery schedule
 - [ ] Food rating system (after 2 hours)
 - [ ] Banner carousel (max 4)
 - [ ] Delivery route optimization
@@ -101,8 +104,8 @@ Build a comprehensive diet meal subscription management system (Salad Caffe) wit
 - [ ] Cash collection tracking
 
 ## Next Action Items
-1. Add Razorpay API keys to enable payment links
-2. Complete Menu Template Builder with mandatory category rules
-3. Implement Print/KOT functionality
-4. Add customer map view with delivery status colors
-5. Implement food rating system
+1. Implement Customer map view with delivery tracking
+2. Add Pay/Renew button with Razorpay link
+3. Complete Delivery Boy "Mark as Delivered" flow
+4. Implement Print/KOT functionality
+5. Add customer calendar view
