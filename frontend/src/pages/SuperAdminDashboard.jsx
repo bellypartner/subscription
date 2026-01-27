@@ -100,8 +100,14 @@ export default function SuperAdminDashboard({ user }) {
   const savePlan = async () => {
     try {
       const planData = {
-        ...newPlan,
-        total_deliveries: constants.plan_types?.[newPlan.plan_type]?.deliveries || 24
+        name: newPlan.name,
+        delivery_days: newPlan.delivery_days,
+        validity_days: newPlan.validity_days,
+        diet_type: newPlan.diet_type,
+        price: newPlan.price,
+        cost: newPlan.cost,
+        description: newPlan.description,
+        selected_items: newPlan.selected_items
       };
 
       const url = editingPlan ? `${API}/plans/${editingPlan.plan_id}` : `${API}/plans`;
@@ -120,6 +126,9 @@ export default function SuperAdminDashboard({ user }) {
         setEditingPlan(null);
         resetPlanForm();
         fetchData();
+      } else {
+        const err = await res.json();
+        toast.error(err.detail || "Failed to save plan");
       }
     } catch (err) {
       toast.error("Failed to save plan");
