@@ -157,12 +157,13 @@ export default function SuperAdminDashboard({ user }) {
     setEditingPlan(plan);
     setNewPlan({
       name: plan.name,
-      plan_type: plan.plan_type,
-      diet_type: plan.diet_type,
-      price: plan.price,
-      cost: plan.cost,
+      delivery_days: plan.delivery_days || 24,
+      validity_days: plan.validity_days || 30,
+      diet_type: plan.diet_type || "veg",
+      price: plan.price || 0,
+      cost: plan.cost || 0,
       description: plan.description || "",
-      menu_items_sequence: plan.menu_items_sequence || []
+      selected_items: plan.selected_items || []
     });
     setShowPlanDialog(true);
   };
@@ -170,12 +171,13 @@ export default function SuperAdminDashboard({ user }) {
   const resetPlanForm = () => {
     setNewPlan({
       name: "",
-      plan_type: "monthly",
+      delivery_days: 24,
+      validity_days: 30,
       diet_type: "veg",
       price: 0,
       cost: 0,
       description: "",
-      menu_items_sequence: []
+      selected_items: []
     });
   };
 
