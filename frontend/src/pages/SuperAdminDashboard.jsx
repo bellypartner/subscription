@@ -333,22 +333,25 @@ export default function SuperAdminDashboard({ user }) {
     setShowPlanBuilder(true);
   };
 
-  const savePlanMenuSequence = async (sequence) => {
+  const savePlanMenuSequence = async (selectedItems) => {
     try {
       const res = await fetch(`${API}/plans/${selectedPlanForBuilder.plan_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ menu_items_sequence: sequence }),
+        body: JSON.stringify({ selected_items: selectedItems }),
         credentials: "include"
       });
 
       if (res.ok) {
-        toast.success("Plan menu sequence saved!");
+        toast.success("Plan menu items saved!");
         setShowPlanBuilder(false);
         fetchData();
+      } else {
+        const err = await res.json();
+        toast.error(err.detail || "Failed to save menu items");
       }
     } catch (err) {
-      toast.error("Failed to save menu sequence");
+      toast.error("Failed to save menu items");
     }
   };
 
