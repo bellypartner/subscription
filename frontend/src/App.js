@@ -7,10 +7,13 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import CustomerDashboard from "./pages/CustomerDashboard";
+import CustomerProfile from "./pages/CustomerProfile";
 import KitchenDashboard from "./pages/KitchenDashboard";
 import DeliveryDashboard from "./pages/DeliveryDashboard";
 import SalesManagerDashboard from "./pages/SalesManagerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import CityManagerDashboard from "./pages/CityManagerDashboard";
 import DeliveryTracking from "./pages/DeliveryTracking";
 import SubscriptionManagement from "./pages/SubscriptionManagement";
 
@@ -46,11 +49,13 @@ function AuthCallback() {
 
         const user = await response.json();
         
-        // Redirect based on role
         const roleRoutes = {
+          super_admin: "/super-admin",
           admin: "/admin",
           sales_manager: "/sales",
-          kitchen_staff: "/kitchen",
+          sales_executive: "/sales",
+          city_manager: "/city-manager",
+          kitchen_manager: "/kitchen",
           delivery_boy: "/delivery",
           customer: "/dashboard",
         };
@@ -119,12 +124,19 @@ function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Check if user must change password
+  if (user?.must_change_password && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" replace />;
+  }
+
   if (allowedRoles && !allowedRoles.includes(user?.role)) {
-    // Redirect to appropriate dashboard
     const roleRoutes = {
+      super_admin: "/super-admin",
       admin: "/admin",
       sales_manager: "/sales",
-      kitchen_staff: "/kitchen",
+      sales_executive: "/sales",
+      city_manager: "/city-manager",
+      kitchen_manager: "/kitchen",
       delivery_boy: "/delivery",
       customer: "/dashboard",
     };
@@ -137,7 +149,6 @@ function ProtectedRoute({ children, allowedRoles }) {
 function AppRouter() {
   const location = useLocation();
 
-  // Check for session_id in URL hash (Google OAuth callback)
   if (location.hash?.includes("session_id=")) {
     return <AuthCallback />;
   }
@@ -154,6 +165,11 @@ function AppRouter() {
           {({ user }) => <CustomerDashboard user={user} />}
         </ProtectedRoute>
       } />
+      <Route path="/profile" element={
+        <ProtectedRoute allowedRoles={["customer"]}>
+          {({ user }) => <CustomerProfile user={user} />}
+        </ProtectedRoute>
+      } />
       <Route path="/subscription" element={
         <ProtectedRoute allowedRoles={["customer"]}>
           {({ user }) => <SubscriptionManagement user={user} />}
@@ -165,31 +181,45 @@ function AppRouter() {
         </ProtectedRoute>
       } />
       
-      {/* Kitchen Staff Routes */}
+      {/* Kitchen Manager Routes */}
       <Route path="/kitchen" element={
-        <ProtectedRoute allowedRoles={["kitchen_staff", "admin"]}>
+        <ProtectedRoute allowedRoles={["kitchen_manager", "super_admin", "admin"]}>
           {({ user }) => <KitchenDashboard user={user} />}
         </ProtectedRoute>
       } />
       
       {/* Delivery Boy Routes */}
       <Route path="/delivery" element={
-        <ProtectedRoute allowedRoles={["delivery_boy", "admin"]}>
+        <ProtectedRoute allowedRoles={["delivery_boy", "super_admin", "admin"]}>
           {({ user }) => <DeliveryDashboard user={user} />}
         </ProtectedRoute>
       } />
       
-      {/* Sales Manager Routes */}
+      {/* Sales Routes */}
       <Route path="/sales" element={
-        <ProtectedRoute allowedRoles={["sales_manager", "admin"]}>
+        <ProtectedRoute allowedRoles={["sales_manager", "sales_executive", "super_admin", "admin"]}>
           {({ user }) => <SalesManagerDashboard user={user} />}
+        </ProtectedRoute>
+      } />
+      
+      {/* City Manager Routes */}
+      <Route path="/city-manager" element={
+        <ProtectedRoute allowedRoles={["city_manager", "super_admin", "admin"]}>
+          {({ user }) => <CityManagerDashboard user={user} />}
         </ProtectedRoute>
       } />
       
       {/* Admin Routes */}
       <Route path="/admin" element={
-        <ProtectedRoute allowedRoles={["admin"]}>
+        <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
           {({ user }) => <AdminDashboard user={user} />}
+        </ProtectedRoute>
+      } />
+      
+      {/* Super Admin Routes */}
+      <Route path="/super-admin" element={
+        <ProtectedRoute allowedRoles={["super_admin"]}>
+          {({ user }) => <SuperAdminDashboard user={user} />}
         </ProtectedRoute>
       } />
     </Routes>
