@@ -139,14 +139,14 @@ class PlanBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
     plan_id: str = Field(default_factory=lambda: f"plan_{uuid.uuid4().hex[:12]}")
     name: str
-    plan_type: str  # weekly, 15_days, monthly
-    diet_type: str  # veg, non_veg, mixed, breakfast_only
-    total_deliveries: int
+    delivery_days: int  # 6, 12, or 24
+    validity_days: int  # 7, 15, or 30
+    diet_type: str  # veg, non_veg, mixed
     price: float
     cost: float
     description: Optional[str] = None
-    # Menu items sequence for each delivery day
-    menu_items_sequence: List[Dict[str, Any]] = []  # [{day: 1, item_id: "...", meal_period: "lunch"}, ...]
+    # Selected menu items (exactly delivery_days count)
+    selected_items: List[str] = []  # List of item_ids
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -670,19 +670,26 @@ async def get_kitchen(kitchen_id: str):
 @api_router.post("/plans")
 async def create_plan(request: Request, current_user: dict = Depends(require_roles(["super_admin"]))):
     body = await request.json()
-    plan_type = body.get("plan_type")
-    if plan_type not in PLAN_TYPES:
-        raise HTTPException(status_code=400, detail="Invalid plan type")
+    
+    delivery_days = body.get("delivery_days", 24)
+    if delivery_days not in [6, 12, 24]:
+        raise HTTPException(status_code=400, detail="Delivery days must be 6, 12, or 24")
     
     plan = PlanBase(
         name=body.get("name"),
-        plan_type=plan_type,
+        delivery_days=delivery_days,
+        validity_days=body.get("validity_days", 30),
         diet_type=body.get("diet_type"),
-        total_deliveries=PLAN_TYPES[plan_type]["deliveries"],
         price=body.get("price", 0),
         cost=body.get("cost", 0),
-        description=body.get("description")
+        description=body.get("description"),
+        selected_items=body.get("selected_items", [])
     )
+    
+    # Validate selected items count
+    if len(plan.selected_items) > plan.delivery_days:
+        raise HTTPException(status_code=400, detail=f"Cannot select more than {plan.delivery_days} items")
+    
     doc = plan.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     await db.plans.insert_one(doc)
@@ -692,12 +699,12 @@ async def create_plan(request: Request, current_user: dict = Depends(require_rol
     return await db.plans.find_one({"plan_id": plan.plan_id}, {"_id": 0})
 
 @api_router.get("/plans")
-async def get_plans(diet_type: Optional[str] = None, plan_type: Optional[str] = None):
-    query = {"is_active": True}
+async def get_plans(diet_type: Optional[str] = None, include_inactive: bool = False):
+    query = {}
+    if not include_inactive:
+        query["is_active"] = True
     if diet_type:
         query["diet_type"] = diet_type
-    if plan_type:
-        query["plan_type"] = plan_type
     return await db.plans.find(query, {"_id": 0}).to_list(100)
 
 @api_router.get("/plans/{plan_id}")
@@ -708,11 +715,13 @@ async def get_plan(plan_id: str):
         raise HTTPException(status_code=404, detail="Plan not found")
     
     # Enrich with menu item details
-    if plan.get("menu_items_sequence"):
-        for item in plan["menu_items_sequence"]:
-            menu_item = await db.menu_items.find_one({"item_id": item.get("item_id")}, {"_id": 0})
+    if plan.get("selected_items"):
+        items_details = []
+        for item_id in plan["selected_items"]:
+            menu_item = await db.menu_items.find_one({"item_id": item_id}, {"_id": 0})
             if menu_item:
-                item["menu_item"] = menu_item
+                items_details.append(menu_item)
+        plan["items_details"] = items_details
     
     return plan
 
@@ -722,12 +731,18 @@ async def update_plan(plan_id: str, request: Request, current_user: dict = Depen
     body = await request.json()
     body.pop("plan_id", None)  # Prevent ID change
     
-    # If updating menu_items_sequence, validate all items exist
-    if "menu_items_sequence" in body:
-        for item in body["menu_items_sequence"]:
-            menu_item = await db.menu_items.find_one({"item_id": item.get("item_id")}, {"_id": 0})
+    # Validate selected items if provided
+    if "selected_items" in body:
+        plan = await db.plans.find_one({"plan_id": plan_id}, {"_id": 0})
+        delivery_days = body.get("delivery_days", plan.get("delivery_days", 24))
+        if len(body["selected_items"]) > delivery_days:
+            raise HTTPException(status_code=400, detail=f"Cannot select more than {delivery_days} items")
+        
+        # Validate all items exist
+        for item_id in body["selected_items"]:
+            menu_item = await db.menu_items.find_one({"item_id": item_id}, {"_id": 0})
             if not menu_item:
-                raise HTTPException(status_code=400, detail=f"Menu item {item.get('item_id')} not found")
+                raise HTTPException(status_code=400, detail=f"Menu item {item_id} not found")
     
     await db.plans.update_one({"plan_id": plan_id}, {"$set": body})
     await log_action(current_user["user_id"], current_user["role"], "update_plan", "plan", plan_id, body, request)
