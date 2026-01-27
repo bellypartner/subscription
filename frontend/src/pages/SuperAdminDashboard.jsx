@@ -476,14 +476,14 @@ export default function SuperAdminDashboard({ user }) {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Menu Items</CardTitle>
-                <Button onClick={() => { resetMenuItemForm(); setEditingMenuItem(null); setShowMenuDialog(true); }}>
+                <Button onClick={() => { resetMenuItemForm(); setEditingMenuItem(null); setShowMenuDialog(true); }} data-testid="add-menu-item-btn">
                   <Plus className="w-4 h-4 mr-2" />Add Item
                 </Button>
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {menuItems.map((item) => (
-                    <Card key={item.item_id} className={`relative ${!item.is_active ? 'opacity-50' : ''}`}>
+                    <Card key={item.item_id} className={`relative ${!item.is_active ? 'opacity-50' : ''}`} data-testid={`menu-item-card-${item.item_id}`}>
                       <CardContent className="p-4">
                         {/* Image */}
                         <div className="w-full aspect-square bg-muted rounded-lg mb-3 overflow-hidden">
@@ -539,10 +539,10 @@ export default function SuperAdminDashboard({ user }) {
                         {/* Actions */}
                         {item.is_active && (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="flex-1" onClick={() => editMenuItem(item)}>
+                            <Button size="sm" variant="outline" className="flex-1" onClick={() => editMenuItem(item)} data-testid={`edit-menu-item-${item.item_id}`}>
                               <Edit className="w-3 h-3 mr-1" />Edit
                             </Button>
-                            <Button size="sm" variant="destructive" className="flex-1" onClick={() => deleteMenuItem(item.item_id)}>
+                            <Button size="sm" variant="destructive" className="flex-1" onClick={() => deleteMenuItem(item.item_id)} data-testid={`delete-menu-item-${item.item_id}`}>
                               <Trash2 className="w-3 h-3 mr-1" />Delete
                             </Button>
                           </div>
