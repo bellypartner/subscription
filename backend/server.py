@@ -675,20 +675,24 @@ async def create_plan(request: Request, current_user: dict = Depends(require_rol
     if delivery_days not in [6, 12, 24]:
         raise HTTPException(status_code=400, detail="Delivery days must be 6, 12, or 24")
     
+    # Auto-set validity days based on delivery days
+    validity_map = {6: 7, 12: 15, 24: 30}
+    validity_days = body.get("validity_days", validity_map.get(delivery_days, 30))
+    
     plan = PlanBase(
         name=body.get("name"),
         delivery_days=delivery_days,
-        validity_days=body.get("validity_days", 30),
-        diet_type=body.get("diet_type"),
+        validity_days=validity_days,
+        diet_type=body.get("diet_type", "veg"),
         price=body.get("price", 0),
         cost=body.get("cost", 0),
         description=body.get("description"),
         selected_items=body.get("selected_items", [])
     )
     
-    # Validate selected items count
+    # Validate selected items count - can't exceed delivery days
     if len(plan.selected_items) > plan.delivery_days:
-        raise HTTPException(status_code=400, detail=f"Cannot select more than {plan.delivery_days} items")
+        raise HTTPException(status_code=400, detail=f"Cannot select more than {plan.delivery_days} menu items for this plan")
     
     doc = plan.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
