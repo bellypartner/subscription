@@ -656,7 +656,7 @@ export default function SuperAdminDashboard({ user }) {
 
       {/* Menu Item Dialog */}
       <Dialog open={showMenuDialog} onOpenChange={setShowMenuDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="menu-item-dialog">
           <DialogHeader>
             <DialogTitle>{editingMenuItem ? "Edit Menu Item" : "Add Menu Item"}</DialogTitle>
           </DialogHeader>
@@ -665,7 +665,7 @@ export default function SuperAdminDashboard({ user }) {
             <div className="space-y-2">
               <Label>Item Image (1:1 ratio)</Label>
               <div className="flex items-center gap-4">
-                <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center border-2 border-dashed">
+                <div className="w-32 h-32 bg-muted rounded-lg overflow-hidden flex items-center justify-center border-2 border-dashed" data-testid="menu-item-image-preview">
                   {newMenuItem.image_url ? (
                     <img src={newMenuItem.image_url} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
@@ -679,8 +679,9 @@ export default function SuperAdminDashboard({ user }) {
                     ref={fileInputRef}
                     onChange={handleImageUpload}
                     className="hidden"
+                    data-testid="menu-item-image-input"
                   />
-                  <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                  <Button variant="outline" onClick={() => fileInputRef.current?.click()} data-testid="upload-image-btn">
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Image
                   </Button>
@@ -696,12 +697,13 @@ export default function SuperAdminDashboard({ user }) {
                   value={newMenuItem.name}
                   onChange={(e) => setNewMenuItem({ ...newMenuItem, name: e.target.value })}
                   placeholder="e.g., Mediterranean Chicken Salad"
+                  data-testid="menu-item-name-input"
                 />
               </div>
               <div className="space-y-2">
                 <Label>Category *</Label>
                 <Select value={newMenuItem.category} onValueChange={(v) => setNewMenuItem({ ...newMenuItem, category: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger data-testid="menu-item-category-select"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {(constants.meal_categories || ["Salad", "Wrap", "Sandwich", "Multigrain"]).map(cat => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
@@ -717,6 +719,7 @@ export default function SuperAdminDashboard({ user }) {
                 value={newMenuItem.description}
                 onChange={(e) => setNewMenuItem({ ...newMenuItem, description: e.target.value })}
                 placeholder="Brief description of the dish"
+                data-testid="menu-item-description-input"
               />
             </div>
 
