@@ -824,7 +824,7 @@ export default function SuperAdminDashboard({ user }) {
 
       {/* Plan Dialog */}
       <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingPlan ? "Edit Plan" : "Create New Plan"}</DialogTitle>
           </DialogHeader>
@@ -835,24 +835,50 @@ export default function SuperAdminDashboard({ user }) {
                 value={newPlan.name}
                 onChange={(e) => setNewPlan({ ...newPlan, name: e.target.value })}
                 placeholder="e.g., Monthly Veg Plan"
+                data-testid="plan-name-input"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Plan Type *</Label>
-                <Select value={newPlan.plan_type} onValueChange={(v) => setNewPlan({ ...newPlan, plan_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Label>Delivery Days *</Label>
+                <Select 
+                  value={String(newPlan.delivery_days)} 
+                  onValueChange={(v) => {
+                    const days = parseInt(v);
+                    const validityMap = {6: 7, 12: 15, 24: 30};
+                    setNewPlan({ 
+                      ...newPlan, 
+                      delivery_days: days, 
+                      validity_days: validityMap[days] || 30,
+                      selected_items: newPlan.selected_items.slice(0, days)
+                    });
+                  }}
+                >
+                  <SelectTrigger data-testid="delivery-days-select"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="weekly">Weekly (6 deliveries)</SelectItem>
-                    <SelectItem value="15_days">15 Days (12 deliveries)</SelectItem>
-                    <SelectItem value="monthly">Monthly (24 deliveries)</SelectItem>
+                    <SelectItem value="6">6 Deliveries (Weekly)</SelectItem>
+                    <SelectItem value="12">12 Deliveries (15 Days)</SelectItem>
+                    <SelectItem value="24">24 Deliveries (Monthly)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>Validity Days *</Label>
+                <Select value={String(newPlan.validity_days)} onValueChange={(v) => setNewPlan({ ...newPlan, validity_days: parseInt(v) })}>
+                  <SelectTrigger data-testid="validity-days-select"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">7 Days</SelectItem>
+                    <SelectItem value="15">15 Days</SelectItem>
+                    <SelectItem value="30">30 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label>Diet Type *</Label>
                 <Select value={newPlan.diet_type} onValueChange={(v) => setNewPlan({ ...newPlan, diet_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger data-testid="diet-type-select"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="veg">Veg</SelectItem>
                     <SelectItem value="non_veg">Non-Veg</SelectItem>
@@ -861,24 +887,24 @@ export default function SuperAdminDashboard({ user }) {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Price (₹) *</Label>
                 <Input
                   type="number"
                   value={newPlan.price}
                   onChange={(e) => setNewPlan({ ...newPlan, price: parseFloat(e.target.value) || 0 })}
+                  data-testid="plan-price-input"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Cost (₹)</Label>
-                <Input
-                  type="number"
-                  value={newPlan.cost}
-                  onChange={(e) => setNewPlan({ ...newPlan, cost: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Cost (₹) - Internal</Label>
+              <Input
+                type="number"
+                value={newPlan.cost}
+                onChange={(e) => setNewPlan({ ...newPlan, cost: parseFloat(e.target.value) || 0 })}
+                data-testid="plan-cost-input"
+              />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
@@ -886,11 +912,70 @@ export default function SuperAdminDashboard({ user }) {
                 value={newPlan.description}
                 onChange={(e) => setNewPlan({ ...newPlan, description: e.target.value })}
                 placeholder="Brief description of the plan"
+                data-testid="plan-description-input"
               />
             </div>
+            
+            {/* Menu Items Selection */}
+            <div className="space-y-2">
+              <Label>Select Menu Items ({newPlan.selected_items.length} / {newPlan.delivery_days} selected)</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Select up to {newPlan.delivery_days} menu items for this plan. Each item represents one delivery day.
+              </p>
+              <ScrollArea className="h-48 border rounded-md p-2">
+                <div className="space-y-2">
+                  {menuItems.filter(m => m.is_active).map((item) => {
+                    const isSelected = newPlan.selected_items.includes(item.item_id);
+                    const canSelect = newPlan.selected_items.length < newPlan.delivery_days || isSelected;
+                    
+                    return (
+                      <div 
+                        key={item.item_id}
+                        className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                          isSelected ? 'bg-primary/10 border border-primary' : 'bg-muted/30 hover:bg-muted/50'
+                        } ${!canSelect && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => {
+                          if (!canSelect && !isSelected) return;
+                          const newItems = isSelected 
+                            ? newPlan.selected_items.filter(id => id !== item.item_id)
+                            : [...newPlan.selected_items, item.item_id];
+                          setNewPlan({ ...newPlan, selected_items: newItems });
+                        }}
+                        data-testid={`menu-item-select-${item.item_id}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded bg-muted overflow-hidden">
+                            {item.image_url ? (
+                              <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Utensils className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{item.name}</p>
+                            <div className="flex items-center gap-1">
+                              <Badge variant="outline" className="text-xs">{item.category}</Badge>
+                              <Badge variant={item.diet_type === "veg" ? "default" : "destructive"} className="text-xs">
+                                {item.diet_type}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Badge variant="default" className="bg-primary">Selected</Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+            
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowPlanDialog(false)}>Cancel</Button>
-              <Button onClick={savePlan}>{editingPlan ? "Update" : "Create"}</Button>
+              <Button onClick={savePlan} data-testid="save-plan-btn">{editingPlan ? "Update" : "Create"}</Button>
             </DialogFooter>
           </div>
         </DialogContent>
