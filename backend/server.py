@@ -145,6 +145,8 @@ class PlanBase(BaseModel):
     price: float
     cost: float
     description: Optional[str] = None
+    # Menu items sequence for each delivery day
+    menu_items_sequence: List[Dict[str, Any]] = []  # [{day: 1, item_id: "...", meal_period: "lunch"}, ...]
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -157,11 +159,14 @@ class MenuItemBase(BaseModel):
     diet_type: str  # veg, non_veg
     ingredients: List[str] = []
     allergy_tags: List[str] = []
+    # Full nutrition info
     calories: Optional[int] = None
     protein: Optional[float] = None
     carbs: Optional[float] = None
     fat: Optional[float] = None
-    image_url: Optional[str] = None
+    sodium: Optional[float] = None  # in mg
+    fiber: Optional[float] = None   # in g
+    image_url: Optional[str] = None  # 1:1 ratio image
     is_active: bool = True
 
 class MenuTemplateBase(BaseModel):
@@ -695,18 +700,50 @@ async def get_plans(diet_type: Optional[str] = None, plan_type: Optional[str] = 
         query["plan_type"] = plan_type
     return await db.plans.find(query, {"_id": 0}).to_list(100)
 
+@api_router.get("/plans/{plan_id}")
+async def get_plan(plan_id: str):
+    """Get plan by ID with menu items details"""
+    plan = await db.plans.find_one({"plan_id": plan_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    # Enrich with menu item details
+    if plan.get("menu_items_sequence"):
+        for item in plan["menu_items_sequence"]:
+            menu_item = await db.menu_items.find_one({"item_id": item.get("item_id")}, {"_id": 0})
+            if menu_item:
+                item["menu_item"] = menu_item
+    
+    return plan
+
 @api_router.put("/plans/{plan_id}")
-async def update_plan(plan_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin"]))):
+async def update_plan(plan_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin"]))):
+    """Update plan - Super Admin and Admin only"""
     body = await request.json()
-    # Only super admin can update prices
+    body.pop("plan_id", None)  # Prevent ID change
+    
+    # If updating menu_items_sequence, validate all items exist
+    if "menu_items_sequence" in body:
+        for item in body["menu_items_sequence"]:
+            menu_item = await db.menu_items.find_one({"item_id": item.get("item_id")}, {"_id": 0})
+            if not menu_item:
+                raise HTTPException(status_code=400, detail=f"Menu item {item.get('item_id')} not found")
+    
     await db.plans.update_one({"plan_id": plan_id}, {"$set": body})
     await log_action(current_user["user_id"], current_user["role"], "update_plan", "plan", plan_id, body, request)
     return await db.plans.find_one({"plan_id": plan_id}, {"_id": 0})
 
+@api_router.delete("/plans/{plan_id}")
+async def delete_plan(plan_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin"]))):
+    """Soft delete plan - Super Admin and Admin only"""
+    await db.plans.update_one({"plan_id": plan_id}, {"$set": {"is_active": False}})
+    await log_action(current_user["user_id"], current_user["role"], "delete_plan", "plan", plan_id, {}, request)
+    return {"message": "Plan deleted"}
+
 # ==================== MENU MANAGEMENT ====================
 
 @api_router.post("/menu-items")
-async def create_menu_item(request: Request, current_user: dict = Depends(require_roles(["super_admin", "kitchen_manager"]))):
+async def create_menu_item(request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin", "kitchen_manager"]))):
     body = await request.json()
     item = MenuItemBase(**body)
     await db.menu_items.insert_one(item.model_dump())
@@ -714,13 +751,40 @@ async def create_menu_item(request: Request, current_user: dict = Depends(requir
     return await db.menu_items.find_one({"item_id": item.item_id}, {"_id": 0})
 
 @api_router.get("/menu-items")
-async def get_menu_items(category: Optional[str] = None, diet_type: Optional[str] = None):
-    query = {"is_active": True}
+async def get_menu_items(category: Optional[str] = None, diet_type: Optional[str] = None, include_inactive: bool = False):
+    query = {}
+    if not include_inactive:
+        query["is_active"] = True
     if category:
         query["category"] = category
     if diet_type:
         query["diet_type"] = diet_type
     return await db.menu_items.find(query, {"_id": 0}).to_list(500)
+
+@api_router.get("/menu-items/{item_id}")
+async def get_menu_item(item_id: str):
+    item = await db.menu_items.find_one({"item_id": item_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    return item
+
+@api_router.put("/menu-items/{item_id}")
+async def update_menu_item(item_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin"]))):
+    """Update menu item - Super Admin and Admin only"""
+    body = await request.json()
+    body.pop("item_id", None)  # Prevent ID change
+    
+    await db.menu_items.update_one({"item_id": item_id}, {"$set": body})
+    await log_action(current_user["user_id"], current_user["role"], "update_menu_item", "menu_item", item_id, body, request)
+    
+    return await db.menu_items.find_one({"item_id": item_id}, {"_id": 0})
+
+@api_router.delete("/menu-items/{item_id}")
+async def delete_menu_item(item_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin"]))):
+    """Soft delete menu item - Super Admin and Admin only"""
+    await db.menu_items.update_one({"item_id": item_id}, {"$set": {"is_active": False}})
+    await log_action(current_user["user_id"], current_user["role"], "delete_menu_item", "menu_item", item_id, {}, request)
+    return {"message": "Menu item deleted"}
 
 @api_router.post("/menu-templates")
 async def create_menu_template(request: Request, current_user: dict = Depends(require_roles(["super_admin"]))):
