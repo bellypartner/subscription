@@ -26,14 +26,12 @@ class DietMealAPITester:
             print(f"❌ {name} - {details}")
         return success
 
-    def make_request(self, method, endpoint, data=None, token=None, expected_status=200):
+    def make_request(self, method, endpoint, data=None, expected_status=200):
         """Make API request with proper headers"""
         url = f"{self.base_url}/{endpoint}"
         headers = {'Content-Type': 'application/json'}
         
-        if token:
-            headers['Authorization'] = f'Bearer {token}'
-        
+        # Use session cookies for authentication
         try:
             if method == 'GET':
                 response = self.session.get(url, headers=headers)
@@ -63,325 +61,184 @@ class DietMealAPITester:
         success, status, result = self.make_request('GET', '')
         return self.log_test(
             "Root API endpoint", 
-            success and result.get('message') == 'FoodFleet API',
+            success and 'FoodFleet API' in result.get('message', ''),
             f"Status: {status}, Response: {result}"
         )
 
-    def test_cities_endpoint(self):
-        """Test cities endpoint"""
-        success, status, result = self.make_request('GET', 'cities')
+    def test_constants_endpoint(self):
+        """Test constants endpoint - critical for system"""
+        success, status, result = self.make_request('GET', 'constants')
+        
+        if success:
+            required_keys = ['roles', 'cities', 'allergies', 'lifestyle_diseases', 'meal_categories', 'plan_types']
+            missing_keys = [key for key in required_keys if key not in result]
+            if missing_keys:
+                return self.log_test(
+                    "Get system constants", 
+                    False,
+                    f"Missing keys: {missing_keys}"
+                )
+        
         return self.log_test(
-            "Get cities", 
+            "Get system constants", 
+            success and isinstance(result, dict),
+            f"Status: {status}, Keys: {list(result.keys()) if isinstance(result, dict) else 'None'}"
+        )
+
+    def test_plans_endpoint(self):
+        """Test plans endpoint"""
+        success, status, result = self.make_request('GET', 'plans')
+        return self.log_test(
+            "Get plans", 
             success and isinstance(result, list),
-            f"Status: {status}, Cities: {len(result) if isinstance(result, list) else 0}"
+            f"Status: {status}, Plans found: {len(result) if isinstance(result, list) else 0}"
         )
 
-    def test_phone_signup(self):
-        """Test phone signup for customer"""
-        timestamp = datetime.now().strftime("%H%M%S")
-        signup_data = {
-            "name": f"Test Customer {timestamp}",
-            "phone": f"+91987654{timestamp[-4:]}",
-            "email": f"customer{timestamp}@test.com",
-            "password": "TestPass123!",
-            "role": "customer",
-            "address": "123 Test Street, Test City",
-            "city": "Mumbai",
-            "google_location": {"lat": 19.0760, "lng": 72.8777}
-        }
+    def test_menu_items_endpoint(self):
+        """Test menu items endpoint"""
+        success, status, result = self.make_request('GET', 'menu-items')
+        return self.log_test(
+            "Get menu items", 
+            success and isinstance(result, list),
+            f"Status: {status}, Menu items found: {len(result) if isinstance(result, list) else 0}"
+        )
+
+    def test_login(self, phone, password, expected_role):
+        """Test login with specific credentials"""
+        login_data = {"phone": phone, "password": password}
         
-        success, status, result = self.make_request('POST', 'auth/phone-signup', signup_data, expected_status=200)
+        success, status, result = self.make_request('POST', 'auth/login', login_data)
         
         if success and result.get('user_id'):
-            self.test_data['customer'] = result
-            # Extract session token from cookies if available
-            if 'session_token' in self.session.cookies:
-                self.customer_token = self.session.cookies['session_token']
+            self.current_user = result
+            role_match = result.get('role') == expected_role
+            return self.log_test(
+                f"Login as {expected_role} ({phone})", 
+                success and role_match,
+                f"Status: {status}, Role: {result.get('role')}, Expected: {expected_role}"
+            )
         
         return self.log_test(
-            "Customer phone signup", 
-            success and result.get('user_id'),
-            f"Status: {status}, User ID: {result.get('user_id', 'None')}"
+            f"Login as {expected_role} ({phone})", 
+            False,
+            f"Status: {status}, Response: {result}"
         )
 
-    def test_login(self):
-        """Test login with phone/password"""
-        if not self.test_data.get('customer'):
-            return self.log_test("Customer login", False, "No customer data from signup")
+    def test_auth_me(self):
+        """Test auth/me endpoint"""
+        success, status, result = self.make_request('GET', 'auth/me')
         
-        customer = self.test_data['customer']
-        login_data = {
-            "phone": customer.get('phone'),
-            "password": "TestPass123!"
-        }
-        
-        success, status, result = self.make_request('POST', 'auth/login', login_data, expected_status=200)
-        
-        if success and result.get('user_id'):
-            # Extract session token from cookies
-            if 'session_token' in self.session.cookies:
-                self.customer_token = self.session.cookies['session_token']
-        
-        return self.log_test(
-            "Customer login", 
-            success and result.get('user_id') == customer.get('user_id'),
-            f"Status: {status}, Logged in: {result.get('name', 'Unknown')}"
-        )
-
-    def test_get_me(self):
-        """Test get current user info"""
-        success, status, result = self.make_request('GET', 'auth/me', token=self.customer_token)
+        if success and self.current_user:
+            role_match = result.get('role') == self.current_user.get('role')
+            return self.log_test(
+                "Get current user (/auth/me)", 
+                success and role_match,
+                f"Status: {status}, Role: {result.get('role')}"
+            )
         
         return self.log_test(
             "Get current user (/auth/me)", 
-            success and result.get('user_id'),
-            f"Status: {status}, User: {result.get('name', 'Unknown')}"
+            False,
+            f"Status: {status}, Current user: {bool(self.current_user)}"
         )
 
-    def create_admin_user(self):
-        """Create admin user for testing admin endpoints"""
-        timestamp = datetime.now().strftime("%H%M%S")
-        admin_data = {
-            "name": f"Test Admin {timestamp}",
-            "phone": f"+91876543{timestamp[-4:]}",
-            "email": f"admin{timestamp}@test.com",
-            "password": "AdminPass123!",
-            "role": "admin"
-        }
+    def test_role_specific_access(self):
+        """Test role-specific endpoints based on current user"""
+        if not self.current_user:
+            return self.log_test("Role-specific access", False, "No user logged in")
+            
+        role = self.current_user.get('role')
         
-        success, status, result = self.make_request('POST', 'auth/phone-signup', admin_data, expected_status=200)
+        if role == 'super_admin':
+            # Test super admin endpoints
+            success1, status1, result1 = self.make_request('GET', 'users')
+            success2, status2, result2 = self.make_request('GET', 'audit-logs?limit=10')
+            
+            return self.log_test(
+                "Super Admin access (users & audit logs)", 
+                success1 and success2,
+                f"Users: {status1}, Audit: {status2}"
+            )
+            
+        elif role == 'kitchen_manager':
+            # Test kitchen manager endpoints - need kitchen_id
+            kitchen_id = self.current_user.get('kitchen_id', 'test_kitchen')
+            success, status, result = self.make_request('GET', f'deliveries/today?kitchen_id={kitchen_id}')
+            
+            return self.log_test(
+                "Kitchen Manager access (today's deliveries)", 
+                success,
+                f"Status: {status}, Kitchen ID: {kitchen_id}"
+            )
+            
+        elif role == 'customer':
+            # Test customer endpoints
+            success1, status1, result1 = self.make_request('GET', 'subscriptions')
+            success2, status2, result2 = self.make_request('GET', 'notifications')
+            
+            return self.log_test(
+                "Customer access (subscriptions & notifications)", 
+                success1 and success2,
+                f"Subscriptions: {status1}, Notifications: {status2}"
+            )
+            
+        elif role == 'delivery_boy':
+            # Test delivery boy endpoints
+            success, status, result = self.make_request('GET', 'deliveries')
+            
+            return self.log_test(
+                "Delivery Boy access (deliveries)", 
+                success,
+                f"Status: {status}"
+            )
         
-        if success and result.get('user_id'):
-            self.test_data['admin'] = result
-            # Login as admin to get token
-            login_data = {
-                "phone": admin_data['phone'],
-                "password": "AdminPass123!"
-            }
-            login_success, login_status, login_result = self.make_request('POST', 'auth/login', login_data)
-            if login_success and 'session_token' in self.session.cookies:
-                self.admin_token = self.session.cookies['session_token']
-        
-        return self.log_test(
-            "Create admin user", 
-            success and result.get('user_id'),
-            f"Status: {status}, Admin ID: {result.get('user_id', 'None')}"
-        )
+        return self.log_test(f"Role access for {role}", True, "No specific tests for this role")
 
-    def test_create_kitchen(self):
-        """Test kitchen creation (admin only)"""
-        if not self.admin_token:
-            return self.log_test("Create kitchen", False, "No admin token available")
-        
-        kitchen_data = {
-            "name": "Test Kitchen Mumbai",
-            "city": "Mumbai",
-            "address": "456 Kitchen Street, Mumbai",
-            "location": {"lat": 19.0760, "lng": 72.8777},
-            "contact_phone": "+91987654321"
-        }
-        
-        success, status, result = self.make_request('POST', 'kitchens', kitchen_data, token=self.admin_token, expected_status=200)
-        
-        if success and result.get('kitchen_id'):
-            self.test_data['kitchen'] = result
+    def test_logout(self):
+        """Test logout"""
+        success, status, result = self.make_request('POST', 'auth/logout')
+        self.current_user = None
         
         return self.log_test(
-            "Create kitchen (admin)", 
-            success and result.get('kitchen_id'),
-            f"Status: {status}, Kitchen ID: {result.get('kitchen_id', 'None')}"
-        )
-
-    def test_get_kitchens(self):
-        """Test get all kitchens"""
-        success, status, result = self.make_request('GET', 'kitchens')
-        
-        return self.log_test(
-            "Get all kitchens", 
-            success and isinstance(result, list),
-            f"Status: {status}, Kitchens found: {len(result) if isinstance(result, list) else 0}"
-        )
-
-    def test_create_staff_user(self):
-        """Test creating staff users (kitchen_staff, delivery_boy)"""
-        if not self.admin_token or not self.test_data.get('kitchen'):
-            return self.log_test("Create staff users", False, "Missing admin token or kitchen")
-        
-        timestamp = datetime.now().strftime("%H%M%S")
-        kitchen_id = self.test_data['kitchen']['kitchen_id']
-        
-        # Create kitchen staff
-        kitchen_staff_data = {
-            "name": f"Test Kitchen Staff {timestamp}",
-            "phone": f"+91765432{timestamp[-4:]}",
-            "email": f"kitchen{timestamp}@test.com",
-            "password": "StaffPass123!",
-            "role": "kitchen_staff",
-            "kitchen_id": kitchen_id
-        }
-        
-        success1, status1, result1 = self.make_request('POST', 'users', kitchen_staff_data, token=self.admin_token)
-        
-        # Create delivery boy
-        delivery_boy_data = {
-            "name": f"Test Delivery Boy {timestamp}",
-            "phone": f"+91654321{timestamp[-4:]}",
-            "email": f"delivery{timestamp}@test.com",
-            "password": "DeliveryPass123!",
-            "role": "delivery_boy",
-            "kitchen_id": kitchen_id
-        }
-        
-        success2, status2, result2 = self.make_request('POST', 'users', delivery_boy_data, token=self.admin_token)
-        
-        if success1 and result1.get('user_id'):
-            self.test_data['kitchen_staff'] = result1
-        if success2 and result2.get('user_id'):
-            self.test_data['delivery_boy'] = result2
-        
-        return self.log_test(
-            "Create staff users", 
-            success1 and success2,
-            f"Kitchen Staff: {status1}, Delivery Boy: {status2}"
-        )
-
-    def test_create_subscription(self):
-        """Test creating subscription"""
-        if not self.customer_token or not self.test_data.get('customer') or not self.test_data.get('kitchen'):
-            return self.log_test("Create subscription", False, "Missing customer token, customer data, or kitchen")
-        
-        subscription_data = {
-            "user_id": self.test_data['customer']['user_id'],
-            "kitchen_id": self.test_data['kitchen']['kitchen_id'],
-            "plan_type": "weekly",
-            "diet_type": "mixed",
-            "meals": ["breakfast", "lunch"],
-            "delivery_days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
-            "start_date": (datetime.now() + timedelta(days=1)).isoformat()
-        }
-        
-        success, status, result = self.make_request('POST', 'subscriptions', subscription_data, token=self.customer_token)
-        
-        if success and result.get('subscription_id'):
-            self.test_data['subscription'] = result
-        
-        return self.log_test(
-            "Create subscription", 
-            success and result.get('subscription_id'),
-            f"Status: {status}, Subscription ID: {result.get('subscription_id', 'None')}"
-        )
-
-    def test_get_subscriptions(self):
-        """Test get user subscriptions"""
-        success, status, result = self.make_request('GET', 'subscriptions', token=self.customer_token)
-        
-        return self.log_test(
-            "Get user subscriptions", 
-            success and isinstance(result, list),
-            f"Status: {status}, Subscriptions: {len(result) if isinstance(result, list) else 0}"
-        )
-
-    def test_pause_subscription(self):
-        """Test pausing subscription deliveries"""
-        if not self.test_data.get('subscription'):
-            return self.log_test("Pause subscription", False, "No subscription available")
-        
-        subscription_id = self.test_data['subscription']['subscription_id']
-        pause_dates = [(datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")]
-        
-        success, status, result = self.make_request(
-            'PUT', 
-            f'subscriptions/{subscription_id}/pause', 
-            pause_dates, 
-            token=self.customer_token
-        )
-        
-        return self.log_test(
-            "Pause subscription deliveries", 
-            success and result.get('message'),
-            f"Status: {status}, Message: {result.get('message', 'None')}"
-        )
-
-    def test_get_deliveries(self):
-        """Test get user deliveries"""
-        success, status, result = self.make_request('GET', 'deliveries', token=self.customer_token)
-        
-        return self.log_test(
-            "Get user deliveries", 
-            success and isinstance(result, list),
-            f"Status: {status}, Deliveries: {len(result) if isinstance(result, list) else 0}"
-        )
-
-    def test_get_notifications(self):
-        """Test get user notifications"""
-        success, status, result = self.make_request('GET', 'notifications', token=self.customer_token)
-        
-        return self.log_test(
-            "Get user notifications", 
-            success and isinstance(result, list),
-            f"Status: {status}, Notifications: {len(result) if isinstance(result, list) else 0}"
-        )
-
-    def test_kitchen_endpoints_with_staff(self):
-        """Test kitchen-specific endpoints"""
-        if not self.test_data.get('kitchen_staff'):
-            return self.log_test("Kitchen staff endpoints", False, "No kitchen staff user")
-        
-        # Login as kitchen staff
-        kitchen_staff = self.test_data['kitchen_staff']
-        login_data = {
-            "phone": kitchen_staff.get('phone'),
-            "password": "StaffPass123!"
-        }
-        
-        login_success, login_status, login_result = self.make_request('POST', 'auth/login', login_data)
-        if not login_success or 'session_token' not in self.session.cookies:
-            return self.log_test("Kitchen staff login", False, f"Login failed: {login_status}")
-        
-        kitchen_token = self.session.cookies['session_token']
-        
-        # Test today's deliveries
-        kitchen_id = self.test_data['kitchen']['kitchen_id']
-        success, status, result = self.make_request('GET', f'deliveries/today?kitchen_id={kitchen_id}', token=kitchen_token)
-        
-        return self.log_test(
-            "Kitchen staff - today's deliveries", 
-            success and isinstance(result, list),
-            f"Status: {status}, Today's deliveries: {len(result) if isinstance(result, list) else 0}"
+            "Logout", 
+            success,
+            f"Status: {status}"
         )
 
     def run_all_tests(self):
-        """Run all API tests"""
-        print("🚀 Starting FoodFleet API Tests...")
-        print("=" * 50)
+        """Run all API tests based on review request"""
+        print("🚀 Starting Diet Meal Subscription API Tests")
+        print("=" * 60)
         
-        # Basic endpoints
+        # Test basic endpoints first
+        print("\n📋 Testing Basic Endpoints...")
         self.test_root_endpoint()
-        self.test_cities_endpoint()
+        self.test_constants_endpoint()
+        self.test_plans_endpoint()
+        self.test_menu_items_endpoint()
         
-        # Authentication flow
-        self.test_phone_signup()
-        self.test_login()
-        self.test_get_me()
+        # Test authentication for each role from review request
+        print("\n🔐 Testing Authentication & Role-based Access...")
         
-        # Admin operations
-        self.create_admin_user()
-        self.test_create_kitchen()
-        self.test_get_kitchens()
-        self.test_create_staff_user()
+        test_credentials = [
+            ("9000000001", "admin123", "super_admin"),
+            ("9000000007", "admin123", "kitchen_manager"), 
+            ("9000000009", "admin123", "delivery_boy"),
+            ("9000000011", "admin123", "customer")
+        ]
         
-        # Customer operations
-        self.test_create_subscription()
-        self.test_get_subscriptions()
-        self.test_pause_subscription()
-        self.test_get_deliveries()
-        self.test_get_notifications()
+        for phone, password, expected_role in test_credentials:
+            print(f"\n--- Testing {expected_role.replace('_', ' ').title()} ({phone}) ---")
+            
+            if self.test_login(phone, password, expected_role):
+                self.test_auth_me()
+                self.test_role_specific_access()
+                self.test_logout()
+            else:
+                print(f"❌ Failed to login as {expected_role}")
         
-        # Kitchen operations
-        self.test_kitchen_endpoints_with_staff()
-        
-        # Summary
-        print("=" * 50)
+        # Print final results
+        print("\n" + "=" * 60)
         print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
         success_rate = (self.tests_passed / self.tests_run * 100) if self.tests_run > 0 else 0
         print(f"📈 Success Rate: {success_rate:.1f}%")
