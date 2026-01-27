@@ -40,12 +40,13 @@ export default function SuperAdminDashboard({ user }) {
 
   const [newPlan, setNewPlan] = useState({
     name: "",
-    plan_type: "monthly",
+    delivery_days: 24,
+    validity_days: 30,
     diet_type: "veg",
     price: 0,
     cost: 0,
     description: "",
-    menu_items_sequence: []
+    selected_items: []
   });
 
   const [newMenuItem, setNewMenuItem] = useState({
