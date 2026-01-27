@@ -6,16 +6,14 @@ import json
 from datetime import datetime, timedelta
 import uuid
 
-class FoodFleetAPITester:
+class DietMealAPITester:
     def __init__(self, base_url="https://foodfleet-10.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.session = requests.Session()
         self.tests_run = 0
         self.tests_passed = 0
-        self.admin_token = None
-        self.customer_token = None
-        self.kitchen_staff_token = None
-        self.delivery_boy_token = None
+        self.current_user = None
+        self.session_token = None
         self.test_data = {}
 
     def log_test(self, name, success, details=""):
