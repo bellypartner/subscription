@@ -1346,6 +1346,43 @@ async def verify_payment(request: Request):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Payment verification failed")
 
+# ==================== IMAGE UPLOAD ====================
+
+import base64
+
+@api_router.post("/upload-image")
+async def upload_image(request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin", "kitchen_manager"]))):
+    """Upload image and return URL (stores as base64 data URL)"""
+    body = await request.json()
+    image_data = body.get("image_data")  # Base64 encoded image
+    
+    if not image_data:
+        raise HTTPException(status_code=400, detail="No image data provided")
+    
+    # Store as data URL (in production, use cloud storage)
+    image_id = f"img_{uuid.uuid4().hex[:12]}"
+    
+    # Save to database
+    await db.images.insert_one({
+        "image_id": image_id,
+        "data": image_data,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": current_user["user_id"]
+    })
+    
+    # Return URL that can be used to fetch the image
+    return {"image_url": f"/api/images/{image_id}", "image_id": image_id}
+
+@api_router.get("/images/{image_id}")
+async def get_image(image_id: str):
+    """Get image by ID"""
+    image = await db.images.find_one({"image_id": image_id}, {"_id": 0})
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Return base64 data
+    return {"image_data": image.get("data")}
+
 # ==================== CONSTANTS ENDPOINTS ====================
 
 @api_router.get("/constants")
