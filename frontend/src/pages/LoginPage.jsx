@@ -42,11 +42,22 @@ export default function LoginPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || "Login failed");
+        let errorMsg = "Login failed";
+        try {
+          const error = await response.json();
+          errorMsg = error.detail || errorMsg;
+        } catch (e) {
+          errorMsg = `Server error: ${response.status}`;
+        }
+        throw new Error(errorMsg);
       }
 
-      const user = await response.json();
+      let user;
+      try {
+        user = await response.json();
+      } catch (e) {
+        throw new Error("Invalid response from server");
+      }
       toast.success(`Welcome back, ${user.name}!`);
 
       // Redirect based on role
