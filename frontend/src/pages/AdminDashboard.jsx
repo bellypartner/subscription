@@ -700,10 +700,10 @@ export default function AdminDashboard({ user }) {
             {["delivery_boy", "kitchen_manager", "customer"].includes(userForm.role) && (
               <div className="space-y-2">
                 <Label>Assign to Kitchen {userForm.role === "customer" ? "(for deliveries)" : "*"}</Label>
-                <Select value={userForm.kitchen_id} onValueChange={(v) => setUserForm({ ...userForm, kitchen_id: v })}>
+                <Select value={userForm.kitchen_id || "none"} onValueChange={(v) => setUserForm({ ...userForm, kitchen_id: v === "none" ? "" : v })}>
                   <SelectTrigger data-testid="user-kitchen-select"><SelectValue placeholder="Select kitchen" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">-- None --</SelectItem>
+                    <SelectItem value="none">-- None --</SelectItem>
                     {activeKitchens.map((kitchen) => (
                       <SelectItem key={kitchen.kitchen_id} value={kitchen.kitchen_id}>
                         {kitchen.name} ({kitchen.city})
