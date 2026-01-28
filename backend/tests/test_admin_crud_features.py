@@ -26,9 +26,10 @@ class TestAdminLogin:
         })
         assert response.status_code == 200, f"Login failed: {response.text}"
         data = response.json()
-        assert "user" in data
-        assert data["user"]["role"] in ["admin", "super_admin"]
-        print(f"✓ Admin login successful - Role: {data['user']['role']}")
+        # API returns user data directly (not wrapped in "user" key)
+        assert "role" in data
+        assert data["role"] in ["admin", "super_admin"]
+        print(f"✓ Admin login successful - Role: {data['role']}")
 
 
 class TestKitchenCRUD:
