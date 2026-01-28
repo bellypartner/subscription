@@ -621,6 +621,17 @@ async def get_user(user_id: str, current_user: dict = Depends(get_current_user))
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
+@api_router.delete("/users/{user_id}")
+async def delete_user(user_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin"]))):
+    """Soft delete user - Admin only"""
+    # Prevent deleting yourself
+    if current_user["user_id"] == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    
+    await db.users.update_one({"user_id": user_id}, {"$set": {"is_active": False}})
+    await log_action(current_user["user_id"], current_user["role"], "delete_user", "user", user_id, {}, request)
+    return {"message": "User deleted"}
+
 @api_router.get("/users/{user_id}/history")
 async def get_user_history(user_id: str, current_user: dict = Depends(require_roles(["super_admin", "admin", "sales_manager", "city_manager"]))):
     """Get customer history (subscriptions, renewals, revenue)"""
@@ -636,6 +647,7 @@ async def get_user_history(user_id: str, current_user: dict = Depends(require_ro
         "total_deliveries": total_deliveries,
         "renewal_count": len(subscriptions)
     }
+
 
 # ==================== KITCHEN ENDPOINTS ====================
 
