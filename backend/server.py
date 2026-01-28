@@ -652,8 +652,10 @@ async def create_kitchen(request: Request, current_user: dict = Depends(require_
     return await db.kitchens.find_one({"kitchen_id": kitchen.kitchen_id}, {"_id": 0})
 
 @api_router.get("/kitchens")
-async def get_kitchens(city: Optional[str] = None):
-    query = {"is_active": True}
+async def get_kitchens(city: Optional[str] = None, include_inactive: bool = False):
+    query = {}
+    if not include_inactive:
+        query["is_active"] = True
     if city:
         query["city"] = city
     return await db.kitchens.find(query, {"_id": 0}).to_list(100)
@@ -664,6 +666,24 @@ async def get_kitchen(kitchen_id: str):
     if not kitchen:
         raise HTTPException(status_code=404, detail="Kitchen not found")
     return kitchen
+
+@api_router.put("/kitchens/{kitchen_id}")
+async def update_kitchen(kitchen_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin"]))):
+    """Update kitchen - Admin only"""
+    body = await request.json()
+    body.pop("kitchen_id", None)  # Prevent ID change
+    
+    await db.kitchens.update_one({"kitchen_id": kitchen_id}, {"$set": body})
+    await log_action(current_user["user_id"], current_user["role"], "update_kitchen", "kitchen", kitchen_id, body, request)
+    
+    return await db.kitchens.find_one({"kitchen_id": kitchen_id}, {"_id": 0})
+
+@api_router.delete("/kitchens/{kitchen_id}")
+async def delete_kitchen(kitchen_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin"]))):
+    """Soft delete kitchen - Admin only"""
+    await db.kitchens.update_one({"kitchen_id": kitchen_id}, {"$set": {"is_active": False}})
+    await log_action(current_user["user_id"], current_user["role"], "delete_kitchen", "kitchen", kitchen_id, {}, request)
+    return {"message": "Kitchen deleted"}
 
 # ==================== PLAN ENDPOINTS ====================
 
