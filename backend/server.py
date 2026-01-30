@@ -1051,6 +1051,32 @@ async def get_deliveries(
     
     return deliveries
 
+@api_router.post("/deliveries")
+async def create_delivery(request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin", "sales_manager", "city_manager"]))):
+    """Create a delivery for a customer subscription"""
+    body = await request.json()
+    
+    delivery = DeliveryBase(
+        subscription_id=body.get("subscription_id"),
+        user_id=body.get("user_id"),
+        kitchen_id=body.get("kitchen_id"),
+        delivery_boy_id=body.get("delivery_boy_id"),
+        delivery_date=body.get("delivery_date"),
+        delivery_day_number=body.get("delivery_day_number", 1),
+        meal_period=body.get("meal_period", "lunch"),
+        menu_items=body.get("menu_items", []),
+        status=body.get("status", "scheduled"),
+        address=body.get("address", ""),
+        location=body.get("location", {"lat": 0, "lng": 0})
+    )
+    
+    doc = delivery.model_dump()
+    await db.deliveries.insert_one(doc)
+    
+    await log_action(current_user["user_id"], current_user["role"], "create_delivery", "delivery", delivery.delivery_id, body, request)
+    
+    return await db.deliveries.find_one({"delivery_id": delivery.delivery_id}, {"_id": 0})
+
 @api_router.get("/deliveries/today")
 async def get_todays_deliveries(kitchen_id: str, current_user: dict = Depends(require_roles(["super_admin", "admin", "city_manager", "kitchen_manager", "delivery_boy"]))):
     """Get all today's deliveries for kitchen - shows all meal periods"""
