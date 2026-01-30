@@ -204,7 +204,8 @@ class SubscriptionBase(BaseModel):
     remaining_deliveries: int
     extended_deliveries: int = 0  # Auto-extensions from cancellations
     amount_paid: float
-    next_renewal_amount: float
+    next_renewal_amount: float = 0
+    assigned_delivery_boy_id: Optional[str] = None  # Assigned delivery boy for this customer
     status: str = "active"  # active, paused, expired, cancelled
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     created_by: Optional[str] = None
