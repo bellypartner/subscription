@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -6,15 +6,18 @@ import { Badge } from "../components/ui/badge";
 import { Calendar } from "../components/ui/calendar";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Label } from "../components/ui/label";
 import { toast } from "sonner";
 import {
-  Utensils, Bell, LogOut, Calendar as CalendarIcon, MapPin, Clock,
+  Utensils, Bell, LogOut, Calendar as CalendarIcon, Clock,
   Flame, Leaf, ChevronRight, User, Truck, XCircle, AlertTriangle,
-  CheckCircle2
+  CheckCircle2, CreditCard, ShoppingBag, ChevronLeft, Info, ExternalLink
 } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow, isBefore, startOfDay, addDays } from "date-fns";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
+const RAZORPAY_LINK = "https://razorpay.me/@saladcaffe";
 
 // Cancellation cutoff times
 const CANCELLATION_CUTOFFS = {
@@ -28,27 +31,51 @@ export default function CustomerDashboard({ user }) {
   const [subscriptions, setSubscriptions] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [shopItems, setShopItems] = useState([]);
+  const [constants, setConstants] = useState({});
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [cancelDialog, setCancelDialog] = useState({ open: false, delivery: null });
+  const [rescheduleDialog, setRescheduleDialog] = useState({ open: false, delivery: null, timeWindow: "" });
+  const [itemDetailDialog, setItemDetailDialog] = useState({ open: false, item: null });
   const [cancelling, setCancelling] = useState(false);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Banner auto-play
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [banners.length]);
+
   const fetchData = async () => {
     try {
-      const [subsRes, deliveriesRes, notifRes] = await Promise.all([
+      const [subsRes, deliveriesRes, notifRes, bannersRes, announcementsRes, shopRes, constantsRes] = await Promise.all([
         fetch(`${API}/subscriptions`, { credentials: "include" }),
         fetch(`${API}/deliveries`, { credentials: "include" }),
-        fetch(`${API}/notifications`, { credentials: "include" })
+        fetch(`${API}/notifications`, { credentials: "include" }),
+        fetch(`${API}/banners`, { credentials: "include" }),
+        fetch(`${API}/announcements`, { credentials: "include" }),
+        fetch(`${API}/shop-items`, { credentials: "include" }),
+        fetch(`${API}/constants`, { credentials: "include" })
       ]);
 
       if (subsRes.ok) setSubscriptions(await subsRes.json());
       if (deliveriesRes.ok) setDeliveries(await deliveriesRes.json());
       if (notifRes.ok) setNotifications(await notifRes.json());
+      if (bannersRes.ok) setBanners(await bannersRes.json());
+      if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
+      if (shopRes.ok) setShopItems(await shopRes.json());
+      if (constantsRes.ok) setConstants(await constantsRes.json());
     } catch (err) {
       console.error("Failed to fetch data");
     } finally {
@@ -76,13 +103,9 @@ export default function CustomerDashboard({ user }) {
     const deliveryDate = parseISO(delivery.delivery_date);
     const today = startOfDay(new Date());
     
-    // Can't cancel past deliveries
     if (isBefore(deliveryDate, today)) return false;
-    
-    // If not today, can cancel
     if (!isToday(deliveryDate)) return true;
     
-    // If today, check cutoff time
     const cutoff = CANCELLATION_CUTOFFS[delivery.meal_period];
     if (!cutoff) return false;
     
@@ -93,7 +116,6 @@ export default function CustomerDashboard({ user }) {
     return now < cutoffTime;
   };
 
-  // Get time remaining until cutoff
   const getTimeUntilCutoff = (delivery) => {
     if (!isToday(parseISO(delivery.delivery_date))) return null;
     
@@ -141,13 +163,36 @@ export default function CustomerDashboard({ user }) {
     }
   };
 
+  const handleRescheduleRequest = async () => {
+    if (!rescheduleDialog.delivery || !rescheduleDialog.timeWindow) return;
+    
+    try {
+      const res = await fetch(`${API}/deliveries/${rescheduleDialog.delivery.delivery_id}/request-reschedule`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ time_window: rescheduleDialog.timeWindow }),
+        credentials: "include"
+      });
+
+      if (res.ok) {
+        toast.success("Reschedule request submitted! We will notify you once approved.");
+        setRescheduleDialog({ open: false, delivery: null, timeWindow: "" });
+        fetchData();
+      } else {
+        const err = await res.json();
+        toast.error(err.detail || "Failed to request reschedule");
+      }
+    } catch (err) {
+      toast.error("Failed to request reschedule");
+    }
+  };
+
   const getDeliveriesForDate = (date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     return deliveries.filter(d => d.delivery_date === dateStr);
   };
 
   const selectedDateDeliveries = getDeliveriesForDate(selectedDate);
-  const todayDeliveries = getDeliveriesForDate(new Date());
   
   const upcomingDeliveries = deliveries
     .filter(d => {
@@ -159,11 +204,21 @@ export default function CustomerDashboard({ user }) {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
   
-  // Calculate profile completion
   const profileFields = ['address', 'height', 'weight', 'allergies', 'lifestyle_diseases'];
   const completedFields = profileFields.filter(f => user?.[f] && (Array.isArray(user[f]) ? user[f].length > 0 : true));
   const profileCompletion = Math.round((completedFields.length / profileFields.length) * 100);
   const isProfileComplete = profileCompletion >= 80;
+
+  const hasActiveSubscription = subscriptions.some(s => s.status === "active");
+  const activeSubscription = subscriptions.find(s => s.status === "active");
+
+  // Calculate next renewal date
+  const getNextRenewalDate = () => {
+    if (!activeSubscription) return null;
+    const startDate = new Date(activeSubscription.start_date);
+    const validityDays = activeSubscription.validity_days || 30;
+    return addDays(startDate, validityDays);
+  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -179,11 +234,7 @@ export default function CustomerDashboard({ user }) {
   };
 
   const getMealIcon = (mealPeriod) => {
-    const icons = {
-      breakfast: "🌅",
-      lunch: "☀️",
-      dinner: "🌙"
-    };
+    const icons = { breakfast: "🌅", lunch: "☀️", dinner: "🌙" };
     return icons[mealPeriod] || "🍽️";
   };
 
@@ -201,11 +252,21 @@ export default function CustomerDashboard({ user }) {
     );
   }
 
-  // If no subscription, show prompt
-  const hasActiveSubscription = subscriptions.some(s => s.status === "active");
-
   return (
     <div className="min-h-screen bg-background" data-testid="customer-dashboard">
+      {/* Running Announcement */}
+      {announcements.length > 0 && (
+        <div className="bg-primary text-primary-foreground py-2 overflow-hidden" data-testid="announcement-bar">
+          <div className="animate-marquee whitespace-nowrap">
+            {announcements.map((ann, i) => (
+              <span key={ann.announcement_id} className="mx-8">
+                📢 {ann.message}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -221,13 +282,7 @@ export default function CustomerDashboard({ user }) {
           
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative"
-                onClick={() => setShowNotifications(!showNotifications)}
-                data-testid="notifications-btn"
-              >
+              <Button variant="ghost" size="icon" className="relative" onClick={() => setShowNotifications(!showNotifications)} data-testid="notifications-btn">
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent text-accent-foreground text-xs rounded-full flex items-center justify-center">
@@ -248,13 +303,7 @@ export default function CustomerDashboard({ user }) {
                       ) : (
                         <div className="space-y-2">
                           {notifications.slice(0, 10).map((notif) => (
-                            <div
-                              key={notif.notification_id}
-                              className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                                notif.is_read ? "bg-muted/50" : "bg-primary/5"
-                              }`}
-                              onClick={() => markNotificationRead(notif.notification_id)}
-                            >
+                            <div key={notif.notification_id} className={`p-3 rounded-lg cursor-pointer transition-colors ${notif.is_read ? "bg-muted/50" : "bg-primary/5"}`} onClick={() => markNotificationRead(notif.notification_id)}>
                               <p className="text-sm font-medium">{notif.title}</p>
                               <p className="text-xs text-muted-foreground mt-1">{notif.message}</p>
                             </div>
@@ -267,12 +316,7 @@ export default function CustomerDashboard({ user }) {
               )}
             </div>
             
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/profile")}
-              data-testid="profile-btn"
-            >
+            <Button variant="ghost" size="icon" onClick={() => navigate("/profile")} data-testid="profile-btn">
               <User className="w-5 h-5" />
             </Button>
             
@@ -284,6 +328,48 @@ export default function CustomerDashboard({ user }) {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Banner Carousel */}
+        {banners.length > 0 && (
+          <div className="relative mb-6 rounded-2xl overflow-hidden" data-testid="banner-carousel">
+            <div className="aspect-[3/1] relative">
+              {banners.map((banner, index) => (
+                <div
+                  key={banner.banner_id}
+                  className={`absolute inset-0 transition-opacity duration-500 ${index === currentBannerIndex ? "opacity-100" : "opacity-0"}`}
+                >
+                  <img src={banner.image_url} alt={banner.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <div className="absolute bottom-4 left-4 text-white">
+                    <h3 className="font-bold text-xl">{banner.title}</h3>
+                    {banner.description && <p className="text-sm opacity-90">{banner.description}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Banner Navigation Dots */}
+            <div className="absolute bottom-2 right-4 flex gap-2">
+              {banners.map((_, index) => (
+                <button
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-all ${index === currentBannerIndex ? "bg-white w-6" : "bg-white/50"}`}
+                  onClick={() => setCurrentBannerIndex(index)}
+                />
+              ))}
+            </div>
+            {/* Navigation Arrows */}
+            {banners.length > 1 && (
+              <>
+                <button className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center" onClick={() => setCurrentBannerIndex((prev) => (prev - 1 + banners.length) % banners.length)}>
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center" onClick={() => setCurrentBannerIndex((prev) => (prev + 1) % banners.length)}>
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Profile Completion Banner */}
         {!isProfileComplete && (
           <Card className="mb-6 border-amber-200 bg-amber-50" data-testid="profile-banner">
@@ -309,15 +395,15 @@ export default function CustomerDashboard({ user }) {
               <Utensils className="w-12 h-12 text-blue-400 mx-auto mb-4" />
               <h3 className="font-semibold text-lg text-blue-800 mb-2">No Active Subscription</h3>
               <p className="text-blue-600 mb-4">Contact our sales team to get started with a meal plan!</p>
-              <p className="text-sm text-blue-500">Once your plan is assigned, you will see your meal calendar here.</p>
             </CardContent>
           </Card>
         )}
 
         {hasActiveSubscription && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Calendar Section */}
+            {/* Left Column - Calendar & Plan Info */}
             <div className="lg:col-span-4 space-y-6">
+              {/* Calendar */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg font-['Outfit'] flex items-center gap-2">
@@ -332,15 +418,9 @@ export default function CustomerDashboard({ user }) {
                     onSelect={(date) => date && setSelectedDate(date)}
                     className="rounded-md"
                     modifiers={{
-                      delivery: deliveries
-                        .filter(d => d.status !== "cancelled")
-                        .map(d => parseISO(d.delivery_date)),
-                      cancelled: deliveries
-                        .filter(d => d.status === "cancelled")
-                        .map(d => parseISO(d.delivery_date)),
-                      delivered: deliveries
-                        .filter(d => d.status === "delivered")
-                        .map(d => parseISO(d.delivery_date))
+                      delivery: deliveries.filter(d => d.status !== "cancelled").map(d => parseISO(d.delivery_date)),
+                      cancelled: deliveries.filter(d => d.status === "cancelled").map(d => parseISO(d.delivery_date)),
+                      delivered: deliveries.filter(d => d.status === "delivered").map(d => parseISO(d.delivery_date))
                     }}
                     modifiersStyles={{
                       delivery: { backgroundColor: "hsl(var(--primary) / 0.2)", borderRadius: "50%" },
@@ -349,133 +429,129 @@ export default function CustomerDashboard({ user }) {
                     }}
                   />
                   <div className="flex items-center justify-center gap-4 mt-3 text-xs">
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-primary/20" />
-                      <span>Scheduled</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-green-500/20" />
-                      <span>Delivered</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-red-500/20" />
-                      <span>Cancelled</span>
-                    </div>
+                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-primary/20" /><span>Scheduled</span></div>
+                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-green-500/20" /><span>Delivered</span></div>
+                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500/20" /><span>Cancelled</span></div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Subscription Info */}
-              {subscriptions[0] && (
-                <Card>
+              {/* Your Plan Card with Renewal */}
+              {activeSubscription && (
+                <Card data-testid="plan-card">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-['Outfit']">Your Plan</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Plan Name</span>
+                      <span className="font-semibold">{activeSubscription.plan_name || activeSubscription.plan_type}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Status</span>
-                      <Badge variant={subscriptions[0].status === "active" ? "default" : "secondary"} className="capitalize">
-                        {subscriptions[0].status}
+                      <Badge variant={activeSubscription.status === "active" ? "default" : "secondary"} className="capitalize">
+                        {activeSubscription.status}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Diet Type</span>
                       <div className="flex items-center gap-1">
-                        {getDietIcon(subscriptions[0].diet_type)}
-                        <span className="capitalize">{subscriptions[0].diet_type?.replace("_", " ")}</span>
+                        {getDietIcon(activeSubscription.diet_type)}
+                        <span className="capitalize">{activeSubscription.diet_type?.replace("_", " ")}</span>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Remaining</span>
-                      <span className="font-semibold">{subscriptions[0].remaining_deliveries} deliveries</span>
+                      <span className="font-semibold">{activeSubscription.remaining_deliveries} deliveries</span>
                     </div>
-                    {subscriptions[0].extended_deliveries > 0 && (
+                    {activeSubscription.extended_deliveries > 0 && (
                       <div className="flex items-center justify-between text-green-600">
                         <span className="text-sm">Extended days</span>
-                        <span className="font-semibold">+{subscriptions[0].extended_deliveries}</span>
+                        <span className="font-semibold">+{activeSubscription.extended_deliveries}</span>
                       </div>
                     )}
                     <div className="pt-2">
                       <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all"
-                          style={{
-                            width: `${(subscriptions[0].remaining_deliveries / subscriptions[0].total_deliveries) * 100}%`
-                          }}
-                        />
+                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(activeSubscription.remaining_deliveries / activeSubscription.total_deliveries) * 100}%` }} />
                       </div>
+                    </div>
+                    
+                    {/* Next Renewal */}
+                    <div className="pt-3 border-t mt-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-muted-foreground">Next Renewal</span>
+                        <span className="font-semibold">{getNextRenewalDate() ? format(getNextRenewalDate(), "MMM d, yyyy") : "N/A"}</span>
+                      </div>
+                      <Button className="w-full" onClick={() => window.open(RAZORPAY_LINK, "_blank")} data-testid="renew-btn">
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Renew Now
+                        <ExternalLink className="w-3 h-3 ml-2" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               )}
             </div>
 
-            {/* Deliveries Section */}
+            {/* Right Column - Deliveries */}
             <div className="lg:col-span-8 space-y-6">
               {/* Selected Date Deliveries */}
               <Card>
                 <CardHeader>
                   <CardTitle className="font-['Outfit'] flex items-center justify-between">
-                    <span>
-                      {isToday(selectedDate) ? "Today's Meals" : 
-                       isTomorrow(selectedDate) ? "Tomorrow's Meals" : 
-                       format(selectedDate, "EEEE, MMM d")}
-                    </span>
-                    {selectedDateDeliveries.length > 0 && (
-                      <Badge variant="outline">{selectedDateDeliveries.length} meal(s)</Badge>
-                    )}
+                    <span>{isToday(selectedDate) ? "Today's Meals" : isTomorrow(selectedDate) ? "Tomorrow's Meals" : format(selectedDate, "EEEE, MMM d")}</span>
+                    {selectedDateDeliveries.length > 0 && <Badge variant="outline">{selectedDateDeliveries.length} meal(s)</Badge>}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {selectedDateDeliveries.length > 0 ? (
                     <div className="space-y-4">
                       {selectedDateDeliveries.map((delivery) => (
-                        <div 
-                          key={delivery.delivery_id} 
-                          className={`p-4 rounded-xl border ${delivery.status === "cancelled" ? "bg-muted/30 opacity-60" : "bg-card"}`}
-                          data-testid={`delivery-${delivery.delivery_id}`}
-                        >
+                        <div key={delivery.delivery_id} className={`p-4 rounded-xl border ${delivery.status === "cancelled" ? "bg-muted/30 opacity-60" : "bg-card"}`} data-testid={`delivery-${delivery.delivery_id}`}>
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-3">
                               <span className="text-2xl">{getMealIcon(delivery.meal_period)}</span>
                               <div>
                                 <h4 className="font-semibold capitalize">{delivery.meal_period}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  Day {delivery.delivery_day_number} of your plan
-                                </p>
+                                <p className="text-sm text-muted-foreground">Day {delivery.delivery_day_number} of your plan</p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <Badge className={getStatusColor(delivery.status)}>
-                                {delivery.status.replace("_", " ")}
-                              </Badge>
+                              <Badge className={getStatusColor(delivery.status)}>{delivery.status.replace("_", " ")}</Badge>
                               {isToday(parseISO(delivery.delivery_date)) && delivery.status === "scheduled" && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Cancel before {CANCELLATION_CUTOFFS[delivery.meal_period]?.display}
-                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">Cancel before {CANCELLATION_CUTOFFS[delivery.meal_period]?.display}</p>
                               )}
                             </div>
                           </div>
 
-                          {/* Menu Items */}
+                          {/* Menu Items - Clickable */}
                           {delivery.menu_items?.length > 0 && (
                             <div className="mb-3">
                               <p className="text-sm font-medium text-muted-foreground mb-2">Menu:</p>
                               {delivery.menu_items.map((item, i) => (
-                                <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-lg">🥗</span>
+                                <div 
+                                  key={i} 
+                                  className="flex items-center justify-between py-2 px-3 border rounded-lg mb-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                                  onClick={() => setItemDetailDialog({ open: true, item })}
+                                  data-testid={`menu-item-${i}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-muted rounded-lg overflow-hidden">
+                                      {item.image_url ? (
+                                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center"><Utensils className="w-5 h-5 text-muted-foreground" /></div>
+                                      )}
+                                    </div>
                                     <div>
                                       <p className="font-medium">{item.name}</p>
-                                      <p className="text-xs text-muted-foreground">{item.category}</p>
+                                      <p className="text-xs text-muted-foreground">{item.category} • Tap for details</p>
                                     </div>
                                   </div>
                                   {item.calories && (
                                     <div className="text-right text-sm">
                                       <p className="font-semibold text-primary">{item.calories} kcal</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        P:{item.protein}g C:{item.carbs}g F:{item.fat}g
-                                      </p>
+                                      <Info className="w-4 h-4 text-muted-foreground inline" />
                                     </div>
                                   )}
                                 </div>
@@ -486,43 +562,29 @@ export default function CustomerDashboard({ user }) {
                           {/* Action Buttons */}
                           <div className="flex items-center gap-2 mt-3">
                             {["out_for_delivery", "in_transit"].includes(delivery.status) && (
-                              <Button
-                                onClick={() => navigate(`/tracking/${delivery.delivery_id}`)}
-                                className="flex-1"
-                                data-testid={`track-${delivery.delivery_id}`}
-                              >
-                                <Truck className="w-4 h-4 mr-2" />
-                                Track Delivery
+                              <Button onClick={() => navigate(`/tracking/${delivery.delivery_id}`)} className="flex-1" data-testid={`track-${delivery.delivery_id}`}>
+                                <Truck className="w-4 h-4 mr-2" />Track Delivery
                               </Button>
                             )}
                             
                             {canCancelDelivery(delivery) && (
-                              <Button
-                                variant="outline"
-                                className="flex-1 text-destructive border-destructive hover:bg-destructive/10"
-                                onClick={() => setCancelDialog({ open: true, delivery })}
-                                data-testid={`cancel-${delivery.delivery_id}`}
-                              >
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Cancel
-                                {isToday(parseISO(delivery.delivery_date)) && (
-                                  <span className="ml-1 text-xs">({getTimeUntilCutoff(delivery)})</span>
-                                )}
-                              </Button>
+                              <>
+                                <Button variant="outline" className="flex-1" onClick={() => setRescheduleDialog({ open: true, delivery, timeWindow: "" })} data-testid={`reschedule-${delivery.delivery_id}`}>
+                                  <Clock className="w-4 h-4 mr-2" />Change Time
+                                </Button>
+                                <Button variant="outline" className="flex-1 text-destructive border-destructive hover:bg-destructive/10" onClick={() => setCancelDialog({ open: true, delivery })} data-testid={`cancel-${delivery.delivery_id}`}>
+                                  <XCircle className="w-4 h-4 mr-2" />Cancel
+                                  {isToday(parseISO(delivery.delivery_date)) && <span className="ml-1 text-xs">({getTimeUntilCutoff(delivery)})</span>}
+                                </Button>
+                              </>
                             )}
                             
                             {delivery.status === "cancelled" && (
-                              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                <XCircle className="w-4 h-4" />
-                                Cancelled - Extended to next day
-                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground text-sm"><XCircle className="w-4 h-4" />Cancelled - Extended to next day</div>
                             )}
                             
                             {delivery.status === "delivered" && (
-                              <div className="flex items-center gap-2 text-green-600 text-sm">
-                                <CheckCircle2 className="w-4 h-4" />
-                                Delivered
-                              </div>
+                              <div className="flex items-center gap-2 text-green-600 text-sm"><CheckCircle2 className="w-4 h-4" />Delivered</div>
                             )}
                           </div>
                         </div>
@@ -531,11 +593,7 @@ export default function CustomerDashboard({ user }) {
                   ) : (
                     <div className="text-center py-8">
                       <CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        {parseISO(format(selectedDate, "yyyy-MM-dd")).getDay() === 0 
-                          ? "Sunday is a holiday - No deliveries"
-                          : "No deliveries scheduled for this date"}
-                      </p>
+                      <p className="text-muted-foreground">{parseISO(format(selectedDate, "yyyy-MM-dd")).getDay() === 0 ? "Sunday is a holiday - No deliveries" : "No deliveries scheduled for this date"}</p>
                     </div>
                   )}
                 </CardContent>
@@ -543,75 +601,72 @@ export default function CustomerDashboard({ user }) {
 
               {/* Upcoming Deliveries */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="font-['Outfit']">Upcoming Deliveries</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="font-['Outfit']">Upcoming Deliveries</CardTitle></CardHeader>
                 <CardContent>
                   {upcomingDeliveries.length > 0 ? (
                     <div className="space-y-3">
                       {upcomingDeliveries.map((delivery) => (
-                        <div
-                          key={delivery.delivery_id}
-                          className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => setSelectedDate(parseISO(delivery.delivery_date))}
-                        >
+                        <div key={delivery.delivery_id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => setSelectedDate(parseISO(delivery.delivery_date))}>
                           <div className="flex items-center gap-3">
                             <span className="text-xl">{getMealIcon(delivery.meal_period)}</span>
                             <div>
-                              <p className="font-medium">
-                                {isToday(parseISO(delivery.delivery_date))
-                                  ? "Today"
-                                  : isTomorrow(parseISO(delivery.delivery_date))
-                                  ? "Tomorrow"
-                                  : format(parseISO(delivery.delivery_date), "EEE, MMM d")}
-                              </p>
-                              <p className="text-xs text-muted-foreground capitalize">
-                                {delivery.meal_period} - Day {delivery.delivery_day_number}
-                              </p>
+                              <p className="font-medium">{isToday(parseISO(delivery.delivery_date)) ? "Today" : isTomorrow(parseISO(delivery.delivery_date)) ? "Tomorrow" : format(parseISO(delivery.delivery_date), "EEE, MMM d")}</p>
+                              <p className="text-xs text-muted-foreground capitalize">{delivery.meal_period} - Day {delivery.delivery_day_number}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge className={getStatusColor(delivery.status)}>
-                              {delivery.status.replace("_", " ")}
-                            </Badge>
+                            <Badge className={getStatusColor(delivery.status)}>{delivery.status.replace("_", " ")}</Badge>
                             <ChevronRight className="w-4 h-4 text-muted-foreground" />
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8">
-                      <CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">No upcoming deliveries</p>
-                    </div>
+                    <div className="text-center py-8"><CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" /><p className="text-muted-foreground">No upcoming deliveries</p></div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Cancellation Deadlines Info */}
+              {/* Shop Items Section */}
+              {shopItems.length > 0 && (
+                <Card data-testid="shop-section">
+                  <CardHeader>
+                    <CardTitle className="font-['Outfit'] flex items-center gap-2">
+                      <ShoppingBag className="w-5 h-5" />
+                      Shop - Add to Your Next Order
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {shopItems.slice(0, 4).map((item) => (
+                        <div key={item.item_id} className="p-3 border rounded-lg hover:shadow-md transition-shadow cursor-pointer">
+                          <div className="aspect-square bg-muted rounded-lg mb-2 overflow-hidden">
+                            {item.image_url ? (
+                              <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-8 h-8 text-muted-foreground" /></div>
+                            )}
+                          </div>
+                          <p className="font-medium text-sm truncate">{item.name}</p>
+                          <p className="text-primary font-semibold">₹{item.price}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3 text-center">Coming soon - Add items to your subscription</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Cancellation Deadlines */}
               <Card className="bg-muted/30">
                 <CardContent className="p-4">
-                  <h4 className="font-medium mb-2 flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Cancellation Deadlines
-                  </h4>
+                  <h4 className="font-medium mb-2 flex items-center gap-2"><Clock className="w-4 h-4" />Cancellation Deadlines</h4>
                   <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Breakfast:</span>
-                      <p className="font-semibold">Before 7:00 AM</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Lunch:</span>
-                      <p className="font-semibold">Before 9:30 AM</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Dinner:</span>
-                      <p className="font-semibold">Before 3:00 PM</p>
-                    </div>
+                    <div><span className="text-muted-foreground">Breakfast:</span><p className="font-semibold">Before 7:00 AM</p></div>
+                    <div><span className="text-muted-foreground">Lunch:</span><p className="font-semibold">Before 9:30 AM</p></div>
+                    <div><span className="text-muted-foreground">Dinner:</span><p className="font-semibold">Before 3:00 PM</p></div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Cancelled deliveries are automatically extended to your subscription end date.
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">Cancelled deliveries are automatically extended to your subscription end date.</p>
                 </CardContent>
               </Card>
             </div>
@@ -622,24 +677,13 @@ export default function CustomerDashboard({ user }) {
       {/* Cancel Confirmation Dialog */}
       <Dialog open={cancelDialog.open} onOpenChange={(open) => setCancelDialog({ open, delivery: null })}>
         <DialogContent data-testid="cancel-dialog">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Cancel Delivery?
-            </DialogTitle>
-          </DialogHeader>
-          
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-amber-500" />Cancel Delivery?</DialogTitle></DialogHeader>
           {cancelDialog.delivery && (
             <div className="space-y-4">
               <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="font-medium capitalize">
-                  {getMealIcon(cancelDialog.delivery.meal_period)} {cancelDialog.delivery.meal_period} - {format(parseISO(cancelDialog.delivery.delivery_date), "EEEE, MMM d")}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Day {cancelDialog.delivery.delivery_day_number} of your plan
-                </p>
+                <p className="font-medium capitalize">{getMealIcon(cancelDialog.delivery.meal_period)} {cancelDialog.delivery.meal_period} - {format(parseISO(cancelDialog.delivery.delivery_date), "EEEE, MMM d")}</p>
+                <p className="text-sm text-muted-foreground mt-1">Day {cancelDialog.delivery.delivery_day_number} of your plan</p>
               </div>
-              
               <div className="space-y-2 text-sm">
                 <p>• This meal will be cancelled and removed from kitchen preparation.</p>
                 <p>• Your subscription will be automatically extended by 1 day.</p>
@@ -647,22 +691,128 @@ export default function CustomerDashboard({ user }) {
               </div>
             </div>
           )}
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelDialog({ open: false, delivery: null })}>
-              Keep Delivery
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleCancelDelivery}
-              disabled={cancelling}
-              data-testid="confirm-cancel-btn"
-            >
-              {cancelling ? "Cancelling..." : "Yes, Cancel Delivery"}
-            </Button>
+            <Button variant="outline" onClick={() => setCancelDialog({ open: false, delivery: null })}>Keep Delivery</Button>
+            <Button variant="destructive" onClick={handleCancelDelivery} disabled={cancelling} data-testid="confirm-cancel-btn">{cancelling ? "Cancelling..." : "Yes, Cancel Delivery"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleDialog.open} onOpenChange={(open) => setRescheduleDialog({ open, delivery: null, timeWindow: "" })}>
+        <DialogContent data-testid="reschedule-dialog">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Clock className="w-5 h-5 text-blue-500" />Request Different Delivery Time</DialogTitle></DialogHeader>
+          {rescheduleDialog.delivery && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="font-medium capitalize">{getMealIcon(rescheduleDialog.delivery.meal_period)} {rescheduleDialog.delivery.meal_period} - Today</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Select New Delivery Time Window</Label>
+                <Select value={rescheduleDialog.timeWindow} onValueChange={(v) => setRescheduleDialog({ ...rescheduleDialog, timeWindow: v })}>
+                  <SelectTrigger data-testid="time-window-select"><SelectValue placeholder="Choose time" /></SelectTrigger>
+                  <SelectContent>
+                    {(constants.delivery_time_windows || ["10:00-11:00", "11:00-12:00", "12:00-13:00", "13:00-14:00", "14:00-15:00"]).map((window) => (
+                      <SelectItem key={window} value={window}>{window.replace("-", " - ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">New time must be at least 1 hour from now. Request requires admin approval.</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRescheduleDialog({ open: false, delivery: null, timeWindow: "" })}>Cancel</Button>
+            <Button onClick={handleRescheduleRequest} disabled={!rescheduleDialog.timeWindow} data-testid="confirm-reschedule-btn">Submit Request</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Item Detail Dialog */}
+      <Dialog open={itemDetailDialog.open} onOpenChange={(open) => setItemDetailDialog({ open, item: null })}>
+        <DialogContent className="max-w-md" data-testid="item-detail-dialog">
+          <DialogHeader><DialogTitle>Item Details</DialogTitle></DialogHeader>
+          {itemDetailDialog.item && (
+            <div className="space-y-4">
+              {/* Image */}
+              <div className="aspect-square w-full bg-muted rounded-lg overflow-hidden">
+                {itemDetailDialog.item.image_url ? (
+                  <img src={itemDetailDialog.item.image_url} alt={itemDetailDialog.item.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"><Utensils className="w-16 h-16 text-muted-foreground" /></div>
+                )}
+              </div>
+              
+              <div>
+                <h3 className="font-bold text-lg">{itemDetailDialog.item.name}</h3>
+                <Badge variant="outline" className="mt-1">{itemDetailDialog.item.category}</Badge>
+              </div>
+
+              {/* Ingredients */}
+              {itemDetailDialog.item.ingredients && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Ingredients:</p>
+                  <p className="text-sm">{Array.isArray(itemDetailDialog.item.ingredients) ? itemDetailDialog.item.ingredients.join(", ") : itemDetailDialog.item.ingredients}</p>
+                </div>
+              )}
+
+              {/* Nutrition Grid */}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <p className="text-xl font-bold text-primary">{itemDetailDialog.item.calories || 0}</p>
+                  <p className="text-xs text-muted-foreground">Calories</p>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <p className="text-xl font-bold text-blue-700">{itemDetailDialog.item.protein || 0}g</p>
+                  <p className="text-xs text-muted-foreground">Protein</p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <p className="text-xl font-bold text-green-700">{itemDetailDialog.item.carbs || 0}g</p>
+                  <p className="text-xs text-muted-foreground">Carbs</p>
+                </div>
+                <div className="p-3 bg-orange-100 rounded-lg">
+                  <p className="text-xl font-bold text-orange-700">{itemDetailDialog.item.fat || 0}g</p>
+                  <p className="text-xs text-muted-foreground">Fat</p>
+                </div>
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <p className="text-xl font-bold text-purple-700">{itemDetailDialog.item.fiber || 0}g</p>
+                  <p className="text-xs text-muted-foreground">Fiber</p>
+                </div>
+                <div className="p-3 bg-red-100 rounded-lg">
+                  <p className="text-xl font-bold text-red-700">{itemDetailDialog.item.sodium || 0}</p>
+                  <p className="text-xs text-muted-foreground">Sodium (mg)</p>
+                </div>
+              </div>
+
+              {/* Allergy Tags */}
+              {itemDetailDialog.item.allergy_tags?.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Allergy Information:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {itemDetailDialog.item.allergy_tags.map((tag) => (
+                      <Badge key={tag} variant="destructive" className="text-xs">{tag}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setItemDetailDialog({ open: false, item: null })}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CSS for marquee animation */}
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          animation: marquee 20s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }
