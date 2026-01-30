@@ -110,18 +110,22 @@ class UserCreate(BaseModel):
 class UserProfileUpdate(BaseModel):
     emergency_contact: Optional[str] = None
     allergies: Optional[List[str]] = None
+    other_allergies: Optional[str] = None  # Free text for non-listed allergies
     lifestyle_diseases: Optional[List[str]] = None
     job_type: Optional[str] = None
     height: Optional[float] = None
     weight: Optional[float] = None
     physical_activity: Optional[str] = None
     smoking_status: Optional[bool] = None
+    drinking_status: Optional[bool] = None  # New field
     accommodation_type: Optional[str] = None
     preferred_meals: Optional[List[str]] = None
     delivery_days: Optional[List[str]] = None
+    delivery_time_window: Optional[str] = None  # e.g., "10:00-11:00", "11:00-12:00"
     subscription_goal: Optional[str] = None
     address: Optional[str] = None
-    google_location: Optional[Dict[str, float]] = None
+    google_location: Optional[Dict[str, float]] = None  # {lat, lng}
+    google_maps_link: Optional[str] = None  # Paste Google Maps URL
     alternate_phone: Optional[str] = None
 
 class KitchenBase(BaseModel):
