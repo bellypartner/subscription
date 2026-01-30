@@ -2,11 +2,10 @@
 
 ## Original Problem Statement
 Build a comprehensive diet meal subscription management system with:
-- Multi-role RBAC: Super Admin, Admin, Sales Manager, Sales Executive, City Manager, Kitchen Manager, Delivery Boy, Customer
+- Multi-role RBAC: Super Admin, Admin, Sales Manager, City Manager, Kitchen Manager, Delivery Boy, Customer
 - Cities: Kochi & Trivandrum with multiple kitchens per city
 - Subscription plans: Weekly (6), 15 Days (12), Monthly (24 deliveries)
 - Diet types: Veg, Non-Veg, Mixed, Breakfast-only
-- Menu categories: Salad, Wrap, Sandwich, Multigrain
 - Sunday holiday - no deliveries
 - Auto-extend subscription on cancellation/skip
 
@@ -15,76 +14,62 @@ Build a comprehensive diet meal subscription management system with:
 - **Lunch**: Before 9:30 AM  
 - **Dinner**: Before 3:00 PM
 
-## Business Logic
-1. **Customer Creation**: Admin creates customer → Customer completes profile
-2. **Subscription Assignment**: Sales/Admin assigns plan with start date (can be future)
-3. **Delivery Assignment**: Admin assigns delivery boy to customer
-4. **Cancellation**: Removed from kitchen prep, auto-extends subscription
-5. **Kitchen Assignment**: Required for customers - determines which kitchen prepares food
-
 ## What's Been Implemented
 
-### Customer Dashboard ✅ (Updated Jan 30, 2026)
-- [x] **Running Announcement Bar** - Marquee animation at top
-- [x] **Banner Carousel** - 5 banners with autoplay and navigation
-- [x] **Delivery Calendar** - Color-coded (Scheduled/Delivered/Cancelled)
-- [x] **Today's Meals** - Click item for full details (image, ingredients, nutrition)
-- [x] **Your Plan Card**:
-  - Plan Name, Status, Diet Type
-  - Remaining deliveries with progress bar
-  - Extended days count
-  - **Next Renewal Date**
-  - **Renew Now button** (links to https://razorpay.me/@saladcaffe)
-- [x] **Cancel Button** with countdown timer
-- [x] **Change Time Button** - Request different delivery time (needs admin approval)
-- [x] **Upcoming Deliveries** list
-- [x] **Shop Section** - Browse items to add to subscription (Coming soon)
-- [x] **Cancellation Deadlines** info card
+### Customer Dashboard ✅
+- Running Announcement Bar (marquee)
+- Banner Carousel (5 slides) with autoplay
+- Delivery Calendar (Scheduled/Delivered/Cancelled highlights)
+- Today's Meals with:
+  - Click for item details (image, ingredients, nutrition)
+  - Cancel/Change Time buttons when available
+  - **"Cancellation cutoff has passed"** message when cutoff passed
+  - **"Ready for pickup"** / **"Being prepared"** status messages
+- Your Plan: Name, Next Renewal, **Renew Now** button (→ Razorpay)
+- Shop Section for add-on items
+- Cancellation Deadlines info
 
-### Customer Profile ✅ (Updated Jan 30, 2026)
-- [x] Profile completion progress with ₹ value (₹100 max)
-- [x] Basic info (name, phone, alternate phone, emergency contact)
-- [x] **Delivery Address**
-- [x] **Google Location** options:
-  - Option 1: Paste Google Maps Link (auto-extracts coordinates)
-  - Option 2: Enter Latitude/Longitude manually
-  - Get Current Location button
-- [x] **Allergies** - Clickable badges (milk, gluten, peanuts, etc.)
-- [x] **"Other allergies"** - Text field for non-listed allergies
-- [x] **Lifestyle Diseases** - Diabetes, Hypertension, Cholesterol, Thyroid
-- [x] Height/Weight inputs
-- [x] **"I smoke"** checkbox
-- [x] **"I drink alcohol"** checkbox
-- [x] Accommodation type
-- [x] **Preferred Delivery Time Window** - 1-hour slots:
-  - 09:00-10:00, 10:00-11:00, 11:00-12:00, 12:00-13:00
-  - 13:00-14:00, 14:00-15:00, 18:00-19:00, 19:00-20:00, 20:00-21:00
-- [x] Preferred Meal Times (breakfast/lunch/dinner)
-- [x] Delivery Days (Mon-Sat, Sunday disabled)
-- [x] Subscription Goal
-- [x] **Save Profile** button (working with success toast)
+### Customer Profile ✅
+- Profile completion progress (₹100 max)
+- Google Location options:
+  - Paste Google Maps Link
+  - Enter Latitude/Longitude
+  - **Get Current Location** (with improved error handling)
+  - **"Open in Maps"** button to view on Google Maps
+- Allergies selection + **"Other allergies"** text field
+- **"I drink alcohol"** checkbox
+- **Delivery Time Window** dropdown (1-hour slots)
+- **Save Profile** working correctly
 
 ### Admin Dashboard ✅
-- [x] Kitchens CRUD with Google coordinates
-- [x] Staff CRUD with Kitchen assignment
-- [x] Customers CRUD with Kitchen/City/Address
+- Kitchens CRUD with Google coordinates
+- Staff CRUD with Kitchen assignment
+- Customers CRUD with Kitchen/City/Address
+
+### Sales Manager Dashboard ✅ (Updated Jan 30, 2026)
+- **Tabs for filtering customers**:
+  - **Active** - Customers with active subscriptions
+  - **Inactive** - No plan or expired
+  - **Recently Finished** - Ended within 7 days
+- Stats cards (clickable to filter)
+- Add Customer with GPS location
+- Create Subscription dialog:
+  - Kitchen selection
+  - Plan selection (shows price & deliveries)
+  - Diet type, Meals, Delivery days
+  - Start date, Amount paid
+- Customer cards show subscription status
 
 ### Super Admin Dashboard ✅
-- [x] Menu Items CRUD with nutrition info
-- [x] Plans CRUD with menu item selection
-
-### Backend Endpoints Added ✅
-- [x] GET/POST /api/announcements
-- [x] GET/POST /api/shop-items
-- [x] PUT /api/deliveries/{id}/request-reschedule
-- [x] PUT /api/users/{id}/profile (with new fields)
-- [x] GET /api/constants (includes delivery_time_windows)
+- Menu Items CRUD (nutrition, allergies, image)
+- Plans CRUD (delivery_days, price, menu selection)
 
 ## Login Credentials (Password: admin123)
 | Role | Phone |
 |------|-------|
 | Super Admin | 9000000001 |
 | Admin | 9000000002 |
+| Sales Manager | 9000000003 |
 | Customer (Test) | 9000000011 |
 
 ## Prioritized Backlog
@@ -93,12 +78,12 @@ Build a comprehensive diet meal subscription management system with:
 - [ ] Delivery Boy "Mark as Delivered" functionality
 - [ ] Customer map view with live delivery tracking
 - [ ] Print/KOT functionality for kitchen
-- [ ] Highlight unassigned customers in Admin dashboard
+- [ ] Highlight unassigned customers (no kitchen/delivery boy)
 
 ### P1 (High Priority)
 - [ ] Approve/Reject reschedule requests (Admin)
 - [ ] Shop items purchase integration
-- [ ] Food rating system (after 2 hours)
+- [ ] Food rating system
 - [ ] Excel export for reports
 
 ### P2 (Nice to Have)
@@ -106,21 +91,13 @@ Build a comprehensive diet meal subscription management system with:
 - [ ] Photo proof of delivery
 - [ ] Cash collection tracking
 
-## Recent Changes (Jan 30, 2026)
-1. Customer Dashboard enhanced with:
-   - Running announcement bar
-   - Banner carousel with autoplay
-   - Item detail dialog (click for ingredients, nutrition)
-   - Renew Now button with Razorpay link
-   - Change Time option for same-day reschedule
-   - Shop items section
-
-2. Customer Profile enhanced with:
-   - Google Maps Link paste option
-   - Other allergies text field
-   - "I drink alcohol" checkbox
-   - Delivery time window dropdown (1-hour slots)
-   - Profile save working correctly
+## Recent Fixes (Jan 30, 2026)
+1. **Cancel delivery**: Shows "Cancellation cutoff has passed" when cutoff time exceeded
+2. **Google Maps**: Added "Open in Maps" button to view location
+3. **Location errors**: Improved error handling with specific messages
+4. **Sales Manager**: Added Active/Inactive/Recently Finished tabs
+5. **Subscription creation**: Works correctly from Sales Manager dashboard
+6. **Plan display**: Shows fallback for delivery count in legacy plans
 
 ## Test Reports
-- `/app/test_reports/iteration_6.json` - 100% pass rate (13/13 tests)
+- `/app/test_reports/iteration_7.json` - 100% pass rate (9/9 tests)
