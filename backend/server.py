@@ -934,15 +934,15 @@ async def create_subscription(request: Request, current_user: dict = Depends(req
         user_id=body.get("user_id"),
         kitchen_id=body.get("kitchen_id"),
         plan_id=body.get("plan_id"),
-        plan_type=plan["plan_type"],
-        diet_type=plan["diet_type"],
+        plan_type=body.get("plan_type", plan.get("plan_type", "monthly")),
+        diet_type=body.get("diet_type", plan.get("diet_type", "veg")),
         meal_periods=body.get("meal_periods", ["lunch"]),
         delivery_days=body.get("delivery_days", user.get("delivery_days", ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"])),
         start_date=start_date,
-        total_deliveries=plan["total_deliveries"],
-        remaining_deliveries=plan["total_deliveries"],
-        amount_paid=body.get("amount_paid", plan["price"]),
-        next_renewal_amount=plan["price"],
+        total_deliveries=body.get("total_deliveries", plan.get("delivery_days", plan.get("total_deliveries", 24))),
+        remaining_deliveries=body.get("remaining_deliveries", plan.get("delivery_days", plan.get("total_deliveries", 24))),
+        amount_paid=body.get("amount_paid", plan.get("price", 0)),
+        next_renewal_amount=plan.get("price", 0),
         created_by=current_user["user_id"]
     )
     
@@ -953,6 +953,22 @@ async def create_subscription(request: Request, current_user: dict = Depends(req
     
     # Generate deliveries
     await generate_subscription_deliveries(subscription, user)
+    
+    # Create notification for admins/sales managers to assign delivery boy
+    notification = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": None,  # Will be sent to admins/sales managers
+        "target_roles": ["super_admin", "admin", "sales_manager", "city_manager"],
+        "title": "New Subscription - Assign Delivery Boy",
+        "message": f"New subscription created for {user.get('name', 'Customer')}. Please assign a delivery boy.",
+        "type": "action_required",
+        "action_type": "assign_delivery_boy",
+        "reference_id": subscription.subscription_id,
+        "reference_type": "subscription",
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification)
     
     await log_action(current_user["user_id"], current_user["role"], "create_subscription", "subscription", subscription.subscription_id, body, request)
     
