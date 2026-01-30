@@ -50,11 +50,11 @@ JOB_TYPES = ["Sitting", "Field", "Mixed"]
 PHYSICAL_ACTIVITY = ["Regular", "Irregular", "None"]
 ACCOMMODATION_TYPES = ["Flat", "Independent house"]
 
-# Cancellation cutoff times
+# Cancellation cutoff times (as per user requirement)
 CANCELLATION_CUTOFFS = {
-    "breakfast": time(6, 0),   # Before 6:00 AM
-    "lunch": time(10, 0),      # Before 10:00 AM
-    "dinner": time(14, 0)      # Before 2:00 PM
+    "breakfast": time(7, 0),    # Before 7:00 AM
+    "lunch": time(9, 30),       # Before 9:30 AM
+    "dinner": time(15, 0)       # Before 3:00 PM
 }
 
 # ==================== MODELS ====================
