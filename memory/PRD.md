@@ -10,123 +10,117 @@ Build a comprehensive diet meal subscription management system with:
 - Sunday holiday - no deliveries
 - Auto-extend subscription on cancellation/skip
 
-## Cancellation Deadlines (Updated)
+## Cancellation Deadlines
 - **Breakfast**: Before 7:00 AM
 - **Lunch**: Before 9:30 AM  
 - **Dinner**: Before 3:00 PM
 
-## Business Logic (Clarified Jan 28, 2026)
-1. **Customer Creation**: Admin creates customer → Customer completes profile (address, height, weight, allergies)
-2. **Subscription Assignment**: Sales/Admin assigns plan to customer with start date (can be future)
+## Business Logic
+1. **Customer Creation**: Admin creates customer → Customer completes profile
+2. **Subscription Assignment**: Sales/Admin assigns plan with start date (can be future)
 3. **Delivery Assignment**: Admin assigns delivery boy to customer
-4. **Cancellation Impact**: Cancelled delivery removes item from kitchen prep list, auto-extends subscription
-5. **Kitchen Assignment**: Required for customers - determines which kitchen prepares their food
+4. **Cancellation**: Removed from kitchen prep, auto-extends subscription
+5. **Kitchen Assignment**: Required for customers - determines which kitchen prepares food
 
 ## What's Been Implemented
 
-### Backend (FastAPI + MongoDB)
-- [x] Role-based access control (8 roles)
-- [x] User management with profile completion points
-- [x] Kitchen management with coordinates (lat/lng)
-- [x] **Kitchen CRUD**: Create, Read, Update, Delete with Google coordinates
-- [x] **User CRUD**: Create, Read, Update, Delete for staff and customers
-- [x] Plan management with delivery_days/validity_days/selected_items
-- [x] Menu item management with nutrition info
-- [x] Subscription management with start_date for future scheduling
-- [x] **Delivery management**: Create, Read, Update, Cancel with auto-extension
-- [x] Cancellation cutoffs (7AM/9:30AM/3PM)
-- [x] In-app notifications
-- [x] Audit logging
-
-### Frontend (React + Tailwind + Shadcn)
-
-#### Super Admin Dashboard ✅
-- [x] Menu Items CRUD (name, category, image, nutrition, allergy tags)
-- [x] Plans CRUD (delivery_days, validity_days, price, menu item selection)
-
-#### Admin Dashboard ✅ (Updated Jan 28, 2026)
-- [x] **Kitchens Tab**: Full CRUD with Google coordinates, "Get Location" button
-- [x] **Staff Tab**: Full CRUD with "Assign to Kitchen" dropdown for delivery boys
-- [x] **Customers Tab**: Full CRUD with "Assign to Kitchen", City, Address fields
-
-#### Customer Dashboard ✅ (Updated Jan 28, 2026)
-- [x] **Profile completion banner** with percentage and ₹100 earn prompt
-- [x] **No subscription banner** when customer has no active plan
-- [x] **Delivery Calendar** with color-coded legend (Scheduled/Delivered/Cancelled)
-- [x] **Today's Meals** section with:
-  - Menu item name and category
-  - Full nutrition info (calories, protein, carbs, fat)
-  - Cancel button with countdown timer showing time until cutoff
-- [x] **Cancel confirmation dialog** explaining subscription extension
+### Customer Dashboard ✅ (Updated Jan 30, 2026)
+- [x] **Running Announcement Bar** - Marquee animation at top
+- [x] **Banner Carousel** - 5 banners with autoplay and navigation
+- [x] **Delivery Calendar** - Color-coded (Scheduled/Delivered/Cancelled)
+- [x] **Today's Meals** - Click item for full details (image, ingredients, nutrition)
+- [x] **Your Plan Card**:
+  - Plan Name, Status, Diet Type
+  - Remaining deliveries with progress bar
+  - Extended days count
+  - **Next Renewal Date**
+  - **Renew Now button** (links to https://razorpay.me/@saladcaffe)
+- [x] **Cancel Button** with countdown timer
+- [x] **Change Time Button** - Request different delivery time (needs admin approval)
 - [x] **Upcoming Deliveries** list
+- [x] **Shop Section** - Browse items to add to subscription (Coming soon)
 - [x] **Cancellation Deadlines** info card
-- [x] **Your Plan** card showing status, diet type, remaining deliveries
 
-#### Customer Profile ✅
+### Customer Profile ✅ (Updated Jan 30, 2026)
+- [x] Profile completion progress with ₹ value (₹100 max)
 - [x] Basic info (name, phone, alternate phone, emergency contact)
-- [x] Delivery address
-- [x] Health info (allergies, lifestyle diseases)
-- [x] Physical metrics (height, weight)
-- [x] Lifestyle (job type, activity level, smoking status)
-- [x] Preferences (meal periods, delivery days, goals)
-- [x] Profile completion progress bar
+- [x] **Delivery Address**
+- [x] **Google Location** options:
+  - Option 1: Paste Google Maps Link (auto-extracts coordinates)
+  - Option 2: Enter Latitude/Longitude manually
+  - Get Current Location button
+- [x] **Allergies** - Clickable badges (milk, gluten, peanuts, etc.)
+- [x] **"Other allergies"** - Text field for non-listed allergies
+- [x] **Lifestyle Diseases** - Diabetes, Hypertension, Cholesterol, Thyroid
+- [x] Height/Weight inputs
+- [x] **"I smoke"** checkbox
+- [x] **"I drink alcohol"** checkbox
+- [x] Accommodation type
+- [x] **Preferred Delivery Time Window** - 1-hour slots:
+  - 09:00-10:00, 10:00-11:00, 11:00-12:00, 12:00-13:00
+  - 13:00-14:00, 14:00-15:00, 18:00-19:00, 19:00-20:00, 20:00-21:00
+- [x] Preferred Meal Times (breakfast/lunch/dinner)
+- [x] Delivery Days (Mon-Sat, Sunday disabled)
+- [x] Subscription Goal
+- [x] **Save Profile** button (working with success toast)
 
-### Other Dashboards (Existing)
-- [x] Kitchen Dashboard (meal tabs, mark ready)
-- [x] Delivery Dashboard (daily deliveries, navigation)
-- [x] Sales Manager Dashboard (customer onboarding)
-- [x] City Manager Dashboard (kitchen/delivery oversight)
+### Admin Dashboard ✅
+- [x] Kitchens CRUD with Google coordinates
+- [x] Staff CRUD with Kitchen assignment
+- [x] Customers CRUD with Kitchen/City/Address
+
+### Super Admin Dashboard ✅
+- [x] Menu Items CRUD with nutrition info
+- [x] Plans CRUD with menu item selection
+
+### Backend Endpoints Added ✅
+- [x] GET/POST /api/announcements
+- [x] GET/POST /api/shop-items
+- [x] PUT /api/deliveries/{id}/request-reschedule
+- [x] PUT /api/users/{id}/profile (with new fields)
+- [x] GET /api/constants (includes delivery_time_windows)
 
 ## Login Credentials (Password: admin123)
 | Role | Phone |
 |------|-------|
 | Super Admin | 9000000001 |
 | Admin | 9000000002 |
-| Sales Manager | 9000000003 |
 | Customer (Test) | 9000000011 |
 
 ## Prioritized Backlog
 
 ### P0 (Critical - Next)
-- [ ] **Pay/Renew button** with Razorpay link (https://razorpay.me/@saladcaffe)
 - [ ] Delivery Boy "Mark as Delivered" functionality
-- [ ] Customer map view with delivery tracking (status colors)
+- [ ] Customer map view with live delivery tracking
 - [ ] Print/KOT functionality for kitchen
+- [ ] Highlight unassigned customers in Admin dashboard
 
 ### P1 (High Priority)
-- [ ] Highlight unassigned customers (no kitchen/delivery boy) in Admin dashboard
-- [ ] Separate "Assign Deliveries" screen for bulk assignment
+- [ ] Approve/Reject reschedule requests (Admin)
+- [ ] Shop items purchase integration
 - [ ] Food rating system (after 2 hours)
-- [ ] Banner carousel (max 4)
-- [ ] Excel export for all reports
+- [ ] Excel export for reports
 
 ### P2 (Nice to Have)
-- [ ] Push notifications
-- [ ] SMS notifications option
+- [ ] Push/SMS notifications
 - [ ] Photo proof of delivery
 - [ ] Cash collection tracking
 
-## Recent Changes
+## Recent Changes (Jan 30, 2026)
+1. Customer Dashboard enhanced with:
+   - Running announcement bar
+   - Banner carousel with autoplay
+   - Item detail dialog (click for ingredients, nutrition)
+   - Renew Now button with Razorpay link
+   - Change Time option for same-day reschedule
+   - Shop items section
 
-### Jan 28, 2026
-1. **Admin Dashboard Complete Rewrite**:
-   - Added Kitchen Edit/Delete with Google coordinates fields
-   - Added Staff Edit/Delete with Kitchen assignment
-   - Added Customer Edit/Delete with Kitchen/City/Address
-
-2. **Customer Dashboard Complete Rewrite**:
-   - Added calendar view with delivery highlights
-   - Added Today's Meals with menu items and nutrition
-   - Added Cancel button with countdown timer
-   - Added Cancellation Deadlines info card
-   - Added profile completion prompt
-
-3. **Backend Updates**:
-   - Updated cancellation cutoffs: Breakfast 7AM, Lunch 9:30AM, Dinner 3PM
-   - Added Kitchen PUT/DELETE endpoints
-   - Added User DELETE endpoint
-   - Added Delivery POST endpoint
-   - Fixed MongoDB projection error in deliveries
+2. Customer Profile enhanced with:
+   - Google Maps Link paste option
+   - Other allergies text field
+   - "I drink alcohol" checkbox
+   - Delivery time window dropdown (1-hour slots)
+   - Profile save working correctly
 
 ## Test Reports
-- `/app/test_reports/iteration_5.json` - 100% pass rate (23/23 tests)
+- `/app/test_reports/iteration_6.json` - 100% pass rate (13/13 tests)
