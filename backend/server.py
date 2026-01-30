@@ -1508,8 +1508,40 @@ async def get_constants():
         "job_types": JOB_TYPES,
         "physical_activity": PHYSICAL_ACTIVITY,
         "accommodation_types": ACCOMMODATION_TYPES,
-        "cancellation_cutoffs": {k: v.isoformat() for k, v in CANCELLATION_CUTOFFS.items()}
+        "cancellation_cutoffs": {k: v.isoformat() for k, v in CANCELLATION_CUTOFFS.items()},
+        "delivery_time_windows": [
+            "09:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-13:00", 
+            "13:00-14:00", "14:00-15:00", "18:00-19:00", "19:00-20:00", "20:00-21:00"
+        ]
     }
+
+@api_router.get("/announcements")
+async def get_announcements():
+    """Get active announcements"""
+    return await db.announcements.find({"is_active": True}, {"_id": 0}).sort("created_at", -1).to_list(10)
+
+@api_router.post("/announcements")
+async def create_announcement(request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin"]))):
+    body = await request.json()
+    announcement = AnnouncementBase(**body)
+    doc = announcement.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.announcements.insert_one(doc)
+    return await db.announcements.find_one({"announcement_id": announcement.announcement_id}, {"_id": 0})
+
+@api_router.get("/shop-items")
+async def get_shop_items():
+    """Get shop items for customers"""
+    return await db.shop_items.find({"is_active": True}, {"_id": 0}).to_list(100)
+
+@api_router.post("/shop-items")
+async def create_shop_item(request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin"]))):
+    body = await request.json()
+    item = ShopItemBase(**body)
+    doc = item.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.shop_items.insert_one(doc)
+    return await db.shop_items.find_one({"item_id": item.item_id}, {"_id": 0})
 
 # ==================== ROOT ====================
 
