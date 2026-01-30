@@ -283,6 +283,25 @@ class BannerBase(BaseModel):
     display_order: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class AnnouncementBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    announcement_id: str = Field(default_factory=lambda: f"ann_{uuid.uuid4().hex[:12]}")
+    message: str
+    type: str = "info"  # info, warning, promo
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ShopItemBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    item_id: str = Field(default_factory=lambda: f"shop_{uuid.uuid4().hex[:12]}")
+    name: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    price: float
+    category: str  # supplements, snacks, beverages, merchandise
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # ==================== HELPER FUNCTIONS ====================
 
 def generate_password():
