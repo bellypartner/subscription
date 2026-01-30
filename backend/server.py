@@ -1193,6 +1193,53 @@ async def cancel_delivery(delivery_id: str, request: Request, current_user: dict
     
     return {"message": "Delivery cancelled and subscription extended"}
 
+@api_router.put("/deliveries/{delivery_id}/request-reschedule")
+async def request_reschedule_delivery(delivery_id: str, request: Request, current_user: dict = Depends(get_current_user)):
+    """Request alternate delivery time for same day"""
+    body = await request.json()
+    new_time_window = body.get("time_window")  # e.g., "14:00-15:00"
+    
+    delivery = await db.deliveries.find_one({"delivery_id": delivery_id}, {"_id": 0})
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    
+    # Check if request is for same day
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if delivery["delivery_date"] != today:
+        raise HTTPException(status_code=400, detail="Reschedule only available for today's deliveries")
+    
+    # Validate time window - must be at least 1 hour from now
+    if new_time_window:
+        start_hour = int(new_time_window.split(":")[0])
+        current_hour = datetime.now(timezone.utc).hour
+        if start_hour <= current_hour + 1:
+            raise HTTPException(status_code=400, detail="New delivery time must be at least 1 hour from now")
+    
+    # Create alternate request (needs admin approval)
+    alt_request = {
+        "request_id": f"req_{uuid.uuid4().hex[:12]}",
+        "user_id": current_user["user_id"],
+        "delivery_id": delivery_id,
+        "request_type": "reschedule",
+        "original_date": delivery["delivery_date"],
+        "new_time_window": new_time_window,
+        "reason": body.get("reason", ""),
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.alternate_requests.insert_one(alt_request)
+    
+    # Update delivery with pending reschedule
+    await db.deliveries.update_one(
+        {"delivery_id": delivery_id}, 
+        {"$set": {"reschedule_requested": True, "requested_time_window": new_time_window}}
+    )
+    
+    await log_action(current_user["user_id"], current_user["role"], "request_reschedule", "delivery", delivery_id, body, request)
+    
+    return {"message": "Reschedule request submitted for approval", "request_id": alt_request["request_id"]}
+
 @api_router.put("/deliveries/{delivery_id}/assign")
 async def assign_delivery(delivery_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin", "city_manager", "kitchen_manager"]))):
     body = await request.json()
