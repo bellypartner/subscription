@@ -423,10 +423,17 @@ export default function CustomerProfile({ user }) {
               </div>
 
               {/* Get Current Location */}
-              <Button type="button" variant="outline" className="w-full" onClick={getLocation} data-testid="get-location-btn">
-                <MapPin className="w-4 h-4 mr-2" />
-                {profile.google_location.lat ? `📍 Location: ${profile.google_location.lat}, ${profile.google_location.lng}` : "Get Current Location"}
-              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={getLocation} data-testid="get-location-btn">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  {profile.google_location.lat ? `📍 ${profile.google_location.lat}, ${profile.google_location.lng}` : "Get Current Location"}
+                </Button>
+                {(profile.google_location.lat || profile.google_maps_link) && (
+                  <Button type="button" variant="default" onClick={openInGoogleMaps} data-testid="open-maps-btn">
+                    Open in Maps
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
