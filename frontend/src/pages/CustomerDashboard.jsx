@@ -560,7 +560,7 @@ export default function CustomerDashboard({ user }) {
                           )}
 
                           {/* Action Buttons */}
-                          <div className="flex items-center gap-2 mt-3">
+                          <div className="flex items-center gap-2 mt-3 flex-wrap">
                             {["out_for_delivery", "in_transit"].includes(delivery.status) && (
                               <Button onClick={() => navigate(`/tracking/${delivery.delivery_id}`)} className="flex-1" data-testid={`track-${delivery.delivery_id}`}>
                                 <Truck className="w-4 h-4 mr-2" />Track Delivery
@@ -579,12 +579,28 @@ export default function CustomerDashboard({ user }) {
                               </>
                             )}
                             
+                            {/* Show message when cutoff passed for today's scheduled delivery */}
+                            {delivery.status === "scheduled" && isToday(parseISO(delivery.delivery_date)) && !canCancelDelivery(delivery) && (
+                              <div className="flex items-center gap-2 text-amber-600 text-sm w-full p-2 bg-amber-50 rounded-lg">
+                                <AlertTriangle className="w-4 h-4" />
+                                Cancellation cutoff ({CANCELLATION_CUTOFFS[delivery.meal_period]?.display}) has passed
+                              </div>
+                            )}
+                            
                             {delivery.status === "cancelled" && (
                               <div className="flex items-center gap-2 text-muted-foreground text-sm"><XCircle className="w-4 h-4" />Cancelled - Extended to next day</div>
                             )}
                             
                             {delivery.status === "delivered" && (
                               <div className="flex items-center gap-2 text-green-600 text-sm"><CheckCircle2 className="w-4 h-4" />Delivered</div>
+                            )}
+                            
+                            {delivery.status === "preparing" && (
+                              <div className="flex items-center gap-2 text-amber-600 text-sm"><Clock className="w-4 h-4" />Being prepared in kitchen</div>
+                            )}
+                            
+                            {delivery.status === "ready" && (
+                              <div className="flex items-center gap-2 text-purple-600 text-sm"><CheckCircle2 className="w-4 h-4" />Ready for pickup</div>
                             )}
                           </div>
                         </div>
