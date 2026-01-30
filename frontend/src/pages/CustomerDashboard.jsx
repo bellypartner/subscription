@@ -309,7 +309,7 @@ export default function CustomerDashboard({ user }) {
               <Utensils className="w-12 h-12 text-blue-400 mx-auto mb-4" />
               <h3 className="font-semibold text-lg text-blue-800 mb-2">No Active Subscription</h3>
               <p className="text-blue-600 mb-4">Contact our sales team to get started with a meal plan!</p>
-              <p className="text-sm text-blue-500">Once your plan is assigned, you'll see your meal calendar here.</p>
+              <p className="text-sm text-blue-500">Once your plan is assigned, you will see your meal calendar here.</p>
             </CardContent>
           </Card>
         )}
