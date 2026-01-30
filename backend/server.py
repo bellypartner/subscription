@@ -1039,8 +1039,15 @@ async def get_deliveries(
     
     # Enrich with customer data
     for d in deliveries:
-        customer = await db.users.find_one({"user_id": d["user_id"]}, {"_id": 0, "password_hash": 0, "name": 1, "phone": 1, "alternate_phone": 1, "address": 1, "allergies": 1})
-        d["customer"] = customer
+        customer = await db.users.find_one({"user_id": d["user_id"]}, {"_id": 0, "password_hash": 0})
+        if customer:
+            d["customer"] = {
+                "name": customer.get("name"),
+                "phone": customer.get("phone"),
+                "alternate_phone": customer.get("alternate_phone"),
+                "address": customer.get("address"),
+                "allergies": customer.get("allergies", [])
+            }
     
     return deliveries
 
