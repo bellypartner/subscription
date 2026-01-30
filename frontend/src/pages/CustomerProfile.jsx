@@ -121,22 +121,55 @@ export default function CustomerProfile({ user }) {
   };
 
   const getLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setProfile({
-            ...profile,
-            google_location: {
-              lat: position.coords.latitude.toFixed(6),
-              lng: position.coords.longitude.toFixed(6)
-            }
-          });
-          toast.success("Location captured!");
-        },
-        () => toast.error("Failed to get location. Please enter manually or paste Google Maps link.")
-      );
+    if (!navigator.geolocation) {
+      toast.error("Geolocation not supported by your browser. Please enter coordinates manually.");
+      return;
+    }
+    
+    toast.info("Getting your location...");
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setProfile({
+          ...profile,
+          google_location: {
+            lat: position.coords.latitude.toFixed(6),
+            lng: position.coords.longitude.toFixed(6)
+          }
+        });
+        toast.success("Location captured successfully!");
+      },
+      (error) => {
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            toast.error("Location access denied. Please enable location permissions in your browser settings, then try again.");
+            break;
+          case error.POSITION_UNAVAILABLE:
+            toast.error("Location unavailable. Please enter coordinates manually or paste a Google Maps link.");
+            break;
+          case error.TIMEOUT:
+            toast.error("Location request timed out. Please try again or enter coordinates manually.");
+            break;
+          default:
+            toast.error("Could not get location. Please enter coordinates manually or paste a Google Maps link.");
+        }
+      },
+      { 
+        enableHighAccuracy: true, 
+        timeout: 15000, 
+        maximumAge: 0 
+      }
+    );
+  };
+
+  // Open location in Google Maps
+  const openInGoogleMaps = () => {
+    if (profile.google_maps_link) {
+      window.open(profile.google_maps_link, "_blank");
+    } else if (profile.google_location?.lat && profile.google_location?.lng) {
+      window.open(`https://www.google.com/maps?q=${profile.google_location.lat},${profile.google_location.lng}`, "_blank");
     } else {
-      toast.error("Geolocation not supported by your browser");
+      toast.error("No location set. Please enter coordinates or paste a Google Maps link first.");
     }
   };
 
