@@ -1427,16 +1427,32 @@ async def review_delivery_request(request_id: str, request: Request, current_use
 
 @api_router.get("/notifications")
 async def get_notifications(current_user: dict = Depends(get_current_user)):
-    return await db.notifications.find({"user_id": current_user["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    # Get notifications for this user OR for their role
+    query = {
+        "$or": [
+            {"user_id": current_user["user_id"]},
+            {"target_roles": current_user["role"]}
+        ]
+    }
+    return await db.notifications.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
 
 @api_router.put("/notifications/{notification_id}/read")
 async def mark_notification_read(notification_id: str, current_user: dict = Depends(get_current_user)):
-    await db.notifications.update_one({"notification_id": notification_id, "user_id": current_user["user_id"]}, {"$set": {"is_read": True}})
+    await db.notifications.update_one(
+        {"notification_id": notification_id}, 
+        {"$set": {"is_read": True, f"read_by.{current_user['user_id']}": True}}
+    )
     return {"message": "Marked as read"}
 
 @api_router.put("/notifications/read-all")
 async def mark_all_read(current_user: dict = Depends(get_current_user)):
-    await db.notifications.update_many({"user_id": current_user["user_id"]}, {"$set": {"is_read": True}})
+    query = {
+        "$or": [
+            {"user_id": current_user["user_id"]},
+            {"target_roles": current_user["role"]}
+        ]
+    }
+    await db.notifications.update_many(query, {"$set": {"is_read": True}})
     return {"message": "All marked as read"}
 
 # ==================== BANNERS ====================
