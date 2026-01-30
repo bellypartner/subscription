@@ -540,7 +540,7 @@ export default function SalesManagerDashboard({ user }) {
                   <SelectContent>
                     {plans.filter(p => p.is_active).map((plan) => (
                       <SelectItem key={plan.plan_id} value={plan.plan_id}>
-                        {plan.name} - ₹{plan.price} ({plan.delivery_days} deliveries)
+                        {plan.name} - ₹{plan.price} ({plan.delivery_days || plan.total_deliveries || 24} deliveries)
                       </SelectItem>
                     ))}
                   </SelectContent>
