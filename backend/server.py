@@ -1022,6 +1022,94 @@ async def get_subscription(subscription_id: str, current_user: dict = Depends(ge
         raise HTTPException(status_code=404, detail="Subscription not found")
     return sub
 
+@api_router.put("/subscriptions/{subscription_id}")
+async def update_subscription(subscription_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin", "sales_manager"]))):
+    """Update subscription - change diet type, delivery boy, etc."""
+    body = await request.json()
+    
+    sub = await db.subscriptions.find_one({"subscription_id": subscription_id}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    
+    # Fields that can be updated
+    update_fields = {}
+    if "diet_type" in body:
+        update_fields["diet_type"] = body["diet_type"]
+    if "meal_periods" in body:
+        update_fields["meal_periods"] = body["meal_periods"]
+    if "delivery_days" in body:
+        update_fields["delivery_days"] = body["delivery_days"]
+    if "assigned_delivery_boy_id" in body:
+        update_fields["assigned_delivery_boy_id"] = body["assigned_delivery_boy_id"]
+        # Also update all pending deliveries with this delivery boy
+        await db.deliveries.update_many(
+            {"subscription_id": subscription_id, "status": "scheduled"},
+            {"$set": {"delivery_boy_id": body["assigned_delivery_boy_id"]}}
+        )
+    if "kitchen_id" in body:
+        update_fields["kitchen_id"] = body["kitchen_id"]
+    if "status" in body:
+        update_fields["status"] = body["status"]
+    
+    if update_fields:
+        await db.subscriptions.update_one({"subscription_id": subscription_id}, {"$set": update_fields})
+        await log_action(current_user["user_id"], current_user["role"], "update_subscription", "subscription", subscription_id, body, request)
+    
+    return await db.subscriptions.find_one({"subscription_id": subscription_id}, {"_id": 0})
+
+@api_router.delete("/subscriptions/{subscription_id}")
+async def delete_subscription(subscription_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin", "sales_manager"]))):
+    """Cancel/Delete subscription"""
+    sub = await db.subscriptions.find_one({"subscription_id": subscription_id}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    
+    # Soft delete - mark as cancelled
+    await db.subscriptions.update_one(
+        {"subscription_id": subscription_id}, 
+        {"$set": {"status": "cancelled"}}
+    )
+    
+    # Cancel all pending deliveries
+    await db.deliveries.update_many(
+        {"subscription_id": subscription_id, "status": "scheduled"},
+        {"$set": {"status": "cancelled", "cancellation_reason": "Subscription cancelled"}}
+    )
+    
+    await log_action(current_user["user_id"], current_user["role"], "delete_subscription", "subscription", subscription_id, {}, request)
+    
+    return {"message": "Subscription cancelled"}
+
+@api_router.put("/subscriptions/{subscription_id}/assign-delivery-boy")
+async def assign_delivery_boy_to_subscription(subscription_id: str, request: Request, current_user: dict = Depends(require_roles(["super_admin", "admin", "sales_manager", "city_manager"]))):
+    """Assign delivery boy to a customer's subscription"""
+    body = await request.json()
+    delivery_boy_id = body.get("delivery_boy_id")
+    
+    if not delivery_boy_id:
+        raise HTTPException(status_code=400, detail="delivery_boy_id is required")
+    
+    # Verify delivery boy exists
+    delivery_boy = await db.users.find_one({"user_id": delivery_boy_id, "role": "delivery_boy"}, {"_id": 0})
+    if not delivery_boy:
+        raise HTTPException(status_code=404, detail="Delivery boy not found")
+    
+    # Update subscription
+    await db.subscriptions.update_one(
+        {"subscription_id": subscription_id},
+        {"$set": {"assigned_delivery_boy_id": delivery_boy_id}}
+    )
+    
+    # Update all pending deliveries
+    await db.deliveries.update_many(
+        {"subscription_id": subscription_id, "status": "scheduled"},
+        {"$set": {"delivery_boy_id": delivery_boy_id}}
+    )
+    
+    await log_action(current_user["user_id"], current_user["role"], "assign_delivery_boy", "subscription", subscription_id, body, request)
+    
+    return {"message": f"Delivery boy assigned successfully", "delivery_boy": delivery_boy.get("name")}
+
 # ==================== DELIVERY ENDPOINTS ====================
 
 @api_router.get("/deliveries")
